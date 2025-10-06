@@ -7,7 +7,7 @@
 #include "Nodes/FlowNode.h"
 
 #if WITH_EDITOR
-#include "FlowMessageLog.h"
+	#include "FlowMessageLog.h"
 #endif
 
 #include "UObject/ObjectKey.h"
@@ -27,36 +27,6 @@ DECLARE_DELEGATE(FFlowGraphEvent);
 DECLARE_DELEGATE_TwoParams(FFlowSignalEvent, const FGuid& /*NodeGuid*/, const FName& /*PinName*/);
 #endif
 
-// Working Data struct for the Harvest Data Pins operation
-// (passed between functions involved in the harvesting operation to simplify the function signatures)
-struct FFlowHarvestDataPinsWorkingData
-{
-	FFlowHarvestDataPinsWorkingData(UFlowNode& InFlowNode, const TMap<FName, FName>& PinNameMapPrev, const TArray<FFlowPin>& InputPinsPrev, const TArray<FFlowPin>& OutputPinsPrev)
-		: FlowNode(&InFlowNode)
-		, PinNameToBoundPropertyNameMapPrev(PinNameMapPrev)
-		, AutoInputDataPinsPrev(InputPinsPrev)
-		, AutoOutputDataPinsPrev(OutputPinsPrev)
-		{ }
-
-#if WITH_EDITOR
-	bool DidPinNameToBoundPropertyNameMapChange() const;
-	bool DidAutoInputDataPinsChange() const;
-	bool DidAutoOutputDataPinsChange() const;
-#endif
-
-	UFlowNode* FlowNode = nullptr;
-
-	const TMap<FName, FName>& PinNameToBoundPropertyNameMapPrev;
-	const TArray<FFlowPin>& AutoInputDataPinsPrev;
-	const TArray<FFlowPin>& AutoOutputDataPinsPrev;
-	
-	TMap<FName, FName> PinNameToBoundPropertyNameMapNext;
-	TArray<FFlowPin> AutoInputDataPinsNext;
-	TArray<FFlowPin> AutoOutputDataPinsNext;
-
-	bool bPinNameMapChanged = false;
-};
-
 /**
  * Single asset containing flow nodes.
  */
@@ -65,7 +35,7 @@ class FLOW_API UFlowAsset : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
-public:	
+public:
 	friend class UFlowNode;
 	friend class UFlowNode_CustomOutput;
 	friend class UFlowNode_SubGraph;
@@ -83,11 +53,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Flow Asset")
 	bool bWorldBound;
 
-//////////////////////////////////////////////////////////////////////////
-// Graph (editor-only)
+	//////////////////////////////////////////////////////////////////////////
+	// Graph (editor-only)
 
 #if WITH_EDITOR
-public:	
+public:
 	friend class UFlowGraph;
 
 	// UObject
@@ -96,7 +66,7 @@ public:
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	virtual void PostLoad() override;
 	// --
-#endif	
+#endif
 
 #if WITH_EDITORONLY_DATA
 public:
@@ -128,8 +98,8 @@ protected:
 	bool IsFlowNodeClassInDeniedClasses(const UClass& FlowNodeClass) const;
 #endif
 
-//////////////////////////////////////////////////////////////////////////
-// Nodes
+	//////////////////////////////////////////////////////////////////////////
+	// Nodes
 
 protected:
 	TArray<TSubclassOf<UFlowNodeBase>> AllowedNodeClasses;
@@ -137,7 +107,7 @@ protected:
 
 	TArray<TSubclassOf<UFlowNodeBase>> AllowedInSubgraphNodeClasses;
 	TArray<TSubclassOf<UFlowNodeBase>> DeniedInSubgraphNodeClasses;
-	
+
 	bool bStartNodePlacedAsGhostNode;
 
 private:
@@ -172,25 +142,6 @@ public:
 
 	// Processes nodes and updates pin connections from the graph to the UFlowNode (processes all nodes in the graph if passed nullptr)
 	void HarvestNodeConnections(UFlowNode* TargetNode = nullptr);
-
-	// Updates the auto-generated pins and bindings for a given FlowNode,
-	// returns true if any changes were made.
-	bool TryUpdateManagedFlowPinsForNode(UFlowNode& FlowNode);
-
-protected:
-	void AddDataPinPropertyBindingToMap(
-		const FName& PinAuthoredName,
-		const FName& PropertyAuthoredName,
-		FFlowHarvestDataPinsWorkingData& InOutData);
-	virtual bool TryCreateFlowDataPinFromMetadataValue(
-		const FString& MetadataValue,
-		UFlowNode& FlowNode,
-		const FProperty& Property,
-		const FText& PinDisplayName,
-		const bool bIsInputPin,
-		TArray<FFlowPin>* InOutDataPinsNext) const;
-
-	void HarvestFlowPinMetadataForProperty(const FProperty* Property, FFlowHarvestDataPinsWorkingData& InOutData);
 #endif
 
 public:
@@ -251,7 +202,7 @@ protected:
 		}
 	}
 
-public:	
+public:
 	UFlowNode_CustomInput* TryFindCustomInputNodeByEventName(const FName& EventName) const;
 	UFlowNode_CustomOutput* TryFindCustomOutputNodeByEventName(const FName& EventName) const;
 
@@ -269,9 +220,9 @@ protected:
 	void AddCustomOutput(const FName& EventName);
 	void RemoveCustomOutput(const FName& EventName);
 #endif
-	
-//////////////////////////////////////////////////////////////////////////
-// Instances of the template asset
+
+	//////////////////////////////////////////////////////////////////////////
+	// Instances of the template asset
 
 private:
 	// Original object holds references to instances
@@ -314,8 +265,8 @@ private:
 	void BroadcastRuntimeMessageAdded(const TSharedRef<FTokenizedMessage>& Message) const;
 #endif
 
-//////////////////////////////////////////////////////////////////////////
-// Executing asset instance
+	//////////////////////////////////////////////////////////////////////////
+	// Executing asset instance
 
 protected:
 	UPROPERTY()
@@ -378,12 +329,12 @@ public:
 	virtual void PreloadNodes() {}
 
 	virtual void PreStartFlow();
-	virtual void StartFlow(IFlowDataPinValueSupplierInterface* DataPinValueSupplier = nullptr);
+	virtual void StartFlow();
 
 	virtual void FinishFlow(const EFlowFinishPolicy InFinishPolicy, const bool bRemoveInstance = true);
 
 	bool HasStartedFlow() const;
-	void TriggerCustomInput(const FName& EventName, IFlowDataPinValueSupplierInterface* DataPinValueSupplier = nullptr);
+	void TriggerCustomInput(const FName& EventName);
 
 	// Get Flow Asset instance created by the given SubGraph node
 	TWeakObjectPtr<UFlowAsset> GetFlowInstance(UFlowNode_SubGraph* SubGraphNode) const;
@@ -398,10 +349,10 @@ protected:
 	void ResetNodes();
 
 #if !UE_BUILD_SHIPPING
-public:	
+public:
 	FFlowSignalEvent OnPinTriggered;
 #endif
-	
+
 public:
 	UFlowSubsystem* GetFlowSubsystem() const;
 	FName GetDisplayName() const;
@@ -421,8 +372,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Flow")
 	const TArray<UFlowNode*>& GetRecordedNodes() const { return RecordedNodes; }
 
-//////////////////////////////////////////////////////////////////////////
-// Expected Owner Class support (for use with CallOwnerFunction nodes)
+	//////////////////////////////////////////////////////////////////////////
+	// Expected Owner Class support (for use with CallOwnerFunction nodes)
 
 public:
 	UClass* GetExpectedOwnerClass() const { return ExpectedOwnerClass; }
@@ -434,8 +385,8 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Flow", meta = (MustImplement = "/Script/Flow.FlowOwnerInterface"))
 	TSubclassOf<UObject> ExpectedOwnerClass;
 
-//////////////////////////////////////////////////////////////////////////
-// SaveGame support
+	//////////////////////////////////////////////////////////////////////////
+	// SaveGame support
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "SaveGame")
@@ -457,8 +408,8 @@ public:
 	UFUNCTION(BlueprintNativeEvent, Category = "SaveGame")
 	bool IsBoundToWorld();
 
-//////////////////////////////////////////////////////////////////////////
-// Utils
+	//////////////////////////////////////////////////////////////////////////
+	// Utils
 
 #if WITH_EDITOR
 public:

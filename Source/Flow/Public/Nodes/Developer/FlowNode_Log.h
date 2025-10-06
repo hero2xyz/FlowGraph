@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Nodes/Graph/FlowNode_DefineProperties.h"
+#include "Nodes/FlowNode.h"
 #include "FlowNode_Log.generated.h"
 
 // Variant of ELogVerbosity
@@ -22,14 +22,13 @@ enum class EFlowLogVerbosity : uint8
  * Optionally shows message on screen
  */
 UCLASS(NotBlueprintable, meta = (DisplayName = "Log", Keywords = "print"))
-class FLOW_API UFlowNode_Log : public UFlowNode_DefineProperties
+class FLOW_API UFlowNode_Log : public UFlowNode
 {
 	GENERATED_UCLASS_BODY()
 	
 private:
 	// The message to write to the log
-	// (if the Message input pin is not connected to another source)
-	UPROPERTY(EditAnywhere, Category = "Flow", meta = (DefaultForInputFlowPin, FlowPinType = String))
+	UPROPERTY(EditAnywhere, Category = "Flow")
 	FString Message;
 
 	UPROPERTY(EditAnywhere, Category = "Flow")

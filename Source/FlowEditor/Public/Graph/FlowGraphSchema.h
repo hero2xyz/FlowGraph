@@ -31,11 +31,6 @@ private:
 	static TMap<FName, FAssetData> BlueprintFlowNodeAddOns;
 	static TMap<TSubclassOf<UFlowNodeBase>, TSubclassOf<UEdGraphNode>> GraphNodesByFlowNodes;
 
-	// cached pointers to struct types
-	static const UScriptStruct* VectorStruct;
-	static const UScriptStruct* RotatorStruct;
-	static const UScriptStruct* TransformStruct;
-
 	static bool bBlueprintCompilationPending;
 
 public:
@@ -49,7 +44,6 @@ public:
 	virtual const FPinConnectionResponse CanMergeNodes(const UEdGraphNode* NodeA, const UEdGraphNode* NodeB) const override;
 	virtual bool TryCreateConnection(UEdGraphPin* A, UEdGraphPin* B) const override;
 	virtual bool ShouldHidePinDefaultValue(UEdGraphPin* Pin) const override;
-	virtual FLinearColor GetPinTypeColor(const FEdGraphPinType& PinType) const override;
 	virtual FText GetPinDisplayName(const UEdGraphPin* Pin) const override;
 	virtual void BreakNodeLinks(UEdGraphNode& TargetNode) const override;
 	virtual void BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotification) const override;
@@ -62,30 +56,17 @@ public:
 #if ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION >= 6
 	virtual void OnPinConnectionDoubleCicked(UEdGraphPin* PinA, UEdGraphPin* PinB, const FVector2f& GraphPosition) const override;
 #endif
-	
+
 	virtual bool IsCacheVisualizationOutOfDate(int32 InVisualizationCacheID) const override;
 	virtual int32 GetCurrentVisualizationCacheID() const override;
 	virtual void ForceVisualizationCacheClear() const override;
 	virtual bool ArePinsCompatible(const UEdGraphPin* PinA, const UEdGraphPin* PinB, const UClass* CallingContext = nullptr, bool bIgnoreArray = false) const override;
 	virtual void ConstructBasicPinTooltip(const UEdGraphPin& Pin, const FText& PinDescription, FString& TooltipOut) const override;
-	virtual bool IsTitleBarPin(const UEdGraphPin& Pin) const override;
-	virtual bool CanShowDataTooltipForPin(const UEdGraphPin& Pin) const override;
+	virtual FLinearColor GetPinTypeColor(const FEdGraphPinType& PinType) const override;
+	virtual FLinearColor GetSecondaryPinTypeColor(const FEdGraphPinType& PinType) const override;
 	// --
 
 	// FlowGraphSchema
-
-	/**
-	 * Returns true if the two pin types are schema compatible.  Handles outputting a more derived
-	 * type to an input pin expecting a less derived type.
-	 *
-	 * @param	Output		  	The output type.
-	 * @param	Input		  	The input type.
-	 * @param	CallingContext	(optional) The calling context (required to properly evaluate pins of type Self)
-	 * @param	bIgnoreArray	(optional) Whether or not to ignore differences between array and non-array types
-	 *
-	 * @return	true if the pin types are compatible.
-	 */
-	virtual bool ArePinTypesCompatible(const FEdGraphPinType& Output, const FEdGraphPinType& Input, const UClass* CallingContext = NULL, bool bIgnoreArray = false) const;
 
 	/**
 	 * Returns the connection response for connecting PinA to PinB, which have already been determined to be compatible
@@ -103,7 +84,7 @@ public:
 	virtual void GetGraphNodeContextActions(FGraphContextMenuBuilder& ContextMenuBuilder, int32 SubNodeFlags) const;
 
 	virtual bool ShouldAlwaysPurgeOnModification() const override { return false; }
-	
+
 	static bool IsAddOnAllowedForSelectedObjects(const TArray<UObject*>& SelectedObjects, const UFlowNodeAddOn* AddOnTemplate);
 
 	// --
@@ -118,8 +99,6 @@ public:
 
 protected:
 	static UFlowGraphNode* CreateDefaultNode(UEdGraph& Graph, const TSubclassOf<UFlowNode>& NodeClass, const FVector2D& Offset, bool bPlacedAsGhostNode);
-
-	static bool ArePinCategoriesEffectivelyMatching(const FName& InputPinCategory, const FName& OutputPinCategory, bool bAllowImplicitCasts = true);
 
 private:
 	static void ApplyNodeOrAddOnFilter(const UFlowAsset* AssetClassDefaults, const UClass* FlowNodeClass, TArray<UFlowNodeBase*>& FilteredNodes);

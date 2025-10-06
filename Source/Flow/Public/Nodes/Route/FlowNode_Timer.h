@@ -48,8 +48,6 @@ protected:
 	virtual void SetTimer();
 	virtual void Restart();
 
-	float ResolveCompletionTime() const;
-	
 private:
 	UFUNCTION()
 	void OnStep();
@@ -62,7 +60,7 @@ protected:
 
 	virtual void OnSave_Implementation() override;
 	virtual void OnLoad_Implementation() override;
-	
+
 #if WITH_EDITOR
 public:
 	virtual void UpdateNodeConfigText_Implementation() override;

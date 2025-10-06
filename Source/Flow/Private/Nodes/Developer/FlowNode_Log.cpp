@@ -28,52 +28,32 @@ UFlowNode_Log::UFlowNode_Log(const FObjectInitializer& ObjectInitializer)
 
 void UFlowNode_Log::ExecuteInput(const FName& PinName)
 {
-	// Get the Message from either the default (Message property) or the data pin (if connected)
-	FFlowDataPinResult_String MessageResult = TryResolveDataPinAsString(GET_MEMBER_NAME_CHECKED(UFlowNode_Log, Message));
-
-	if (MessageResult.Result == EFlowDataPinResolveResult::FailedMissingPin)
-	{
-		// Handle lookup of a FlowNode_Log that predated DataPins
-		MessageResult.Result = EFlowDataPinResolveResult::Success;
-		MessageResult.SetValue(Message);
-	}
-
-	// Format Message with named properties
-	FText FormattedText;
-	if (TryFormatTextWithNamedPropertiesAsParameters(FText::FromString(MessageResult.Value), FormattedText))
-	{
-		MessageResult.Value = FormattedText.ToString();
-	}
-
-	// Display the message
-	check(MessageResult.Result == EFlowDataPinResolveResult::Success);
-
 	switch (Verbosity)
 	{
 		case EFlowLogVerbosity::Error:
-			UE_LOG(LogFlow, Error, TEXT("%s"), *MessageResult.Value);
+			UE_LOG(LogFlow, Error, TEXT("%s"), *Message);
 			break;
 		case EFlowLogVerbosity::Warning:
-			UE_LOG(LogFlow, Warning, TEXT("%s"), *MessageResult.Value);
+			UE_LOG(LogFlow, Warning, TEXT("%s"), *Message);
 			break;
 		case EFlowLogVerbosity::Display:
-			UE_LOG(LogFlow, Display, TEXT("%s"), *MessageResult.Value);
+			UE_LOG(LogFlow, Display, TEXT("%s"), *Message);
 			break;
 		case EFlowLogVerbosity::Log:
-			UE_LOG(LogFlow, Log, TEXT("%s"), *MessageResult.Value);
+			UE_LOG(LogFlow, Log, TEXT("%s"), *Message);
 			break;
 		case EFlowLogVerbosity::Verbose:
-			UE_LOG(LogFlow, Verbose, TEXT("%s"), *MessageResult.Value);
+			UE_LOG(LogFlow, Verbose, TEXT("%s"), *Message);
 			break;
 		case EFlowLogVerbosity::VeryVerbose:
-			UE_LOG(LogFlow, VeryVerbose, TEXT("%s"), *MessageResult.Value);
+			UE_LOG(LogFlow, VeryVerbose, TEXT("%s"), *Message);
 			break;
 		default: ;
 	}
 
 	if (bPrintToScreen)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, Duration, TextColor, MessageResult.Value);
+		GEngine->AddOnScreenDebugMessage(-1, Duration, TextColor, Message);
 	}
 
 	TriggerFirstOutput(true);

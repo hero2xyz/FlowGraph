@@ -32,8 +32,7 @@ FConnectionDrawingPolicy* FFlowGraphConnectionDrawingPolicyFactory::CreateConnec
 // FFlowGraphConnectionDrawingPolicy
 
 FFlowGraphConnectionDrawingPolicy::FFlowGraphConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float ZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, UEdGraph* InGraphObj)
-	: FConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, ZoomFactor, InClippingRect, InDrawElements)
-	, GraphObj(InGraphObj)
+    : FConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, ZoomFactor, InClippingRect, InDrawElements), GraphObj(InGraphObj)
 {
 	// Cache off the editor options
 	RecentWireDuration = UFlowGraphSettings::Get()->RecentWireDuration;
@@ -99,7 +98,7 @@ void FFlowGraphConnectionDrawingPolicy::BuildPaths()
 				for (UEdGraphPin* Pin : SelectedNode->Pins)
 				{
 					if ((Pin->Direction == EGPD_Input && UFlowGraphEditorSettings::Get()->bHighlightInputWiresOfSelectedNodes)
-						|| (Pin->Direction == EGPD_Output && UFlowGraphEditorSettings::Get()->bHighlightOutputWiresOfSelectedNodes))
+					    || (Pin->Direction == EGPD_Output && UFlowGraphEditorSettings::Get()->bHighlightOutputWiresOfSelectedNodes))
 					{
 						for (UEdGraphPin* LinkedPin : Pin->LinkedTo)
 						{
@@ -128,9 +127,9 @@ void FFlowGraphConnectionDrawingPolicy::DrawConnection(int32 LayerId, const FVec
 			DrawCircuitSpline(LayerId, FVector2f(Start), FVector2f(End), Params);
 #else
 			DrawCircuitSpline(LayerId, Start, End, Params);
-#endif		
+#endif
 			break;
-		default: ;
+		default:;
 	}
 }
 
@@ -158,7 +157,7 @@ void FFlowGraphConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Output
 			Params.WireColor *= 0.5f;
 			Params.WireThickness = 0.5f;
 		}
-		else if (InputPin && FFlowPin::IsExecPinCategory(InputPin->PinType.PinCategory))
+		else if (InputPin)
 		{
 			// selected paths
 			if (SelectedPaths.Contains(OutputPin) || SelectedPaths.Contains(InputPin))
@@ -371,11 +370,11 @@ bool FFlowGraphConnectionDrawingPolicy::GetAverageConnectedPosition(UFlowGraphNo
 	FVector2D Result = FVector2D::ZeroVector;
 	int32 ResultCount = 0;
 
-	if(Reroute->InputPins.Num() == 0 || Reroute->OutputPins.Num() == 0)
+	if (Reroute->InputPins.Num() == 0 || Reroute->OutputPins.Num() == 0)
 	{
 		return false;
 	}
-	
+
 	UEdGraphPin* Pin = (Direction == EGPD_Input) ? Reroute->InputPins[0] : Reroute->OutputPins[0];
 	for (const UEdGraphPin* LinkedPin : Pin->LinkedTo)
 	{
@@ -397,4 +396,3 @@ bool FFlowGraphConnectionDrawingPolicy::GetAverageConnectedPosition(UFlowGraphNo
 		return false;
 	}
 }
-

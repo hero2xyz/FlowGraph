@@ -13,13 +13,7 @@
 FName UFlowNode_Timer::INPIN_CompletionTime;
 
 UFlowNode_Timer::UFlowNode_Timer(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-	, CompletionTime(1.0f)
-	, StepTime(0.0f)
-	, ResolvedCompletionTime(0.0f)
-	, SumOfSteps(0.0f)
-	, RemainingCompletionTime(0.0f)
-	, RemainingStepTime(0.0f)
+    : Super(ObjectInitializer), CompletionTime(1.0f), StepTime(0.0f), ResolvedCompletionTime(0.0f), SumOfSteps(0.0f), RemainingCompletionTime(0.0f), RemainingStepTime(0.0f)
 {
 #if WITH_EDITOR
 	Category = TEXT("Route");
@@ -41,7 +35,7 @@ void UFlowNode_Timer::InitializeInstance()
 {
 	Super::InitializeInstance();
 
-	// Initialize to the configured value, 
+	// Initialize to the configured value,
 	// but we will overwrite this with the results of ResolveCompletionTime() when the timer is started
 	ResolvedCompletionTime = CompletionTime;
 }
@@ -77,7 +71,7 @@ void UFlowNode_Timer::SetTimer()
 			GetWorld()->GetTimerManager().SetTimer(StepTimerHandle, this, &UFlowNode_Timer::OnStep, StepTime, true);
 		}
 
-		ResolvedCompletionTime = ResolveCompletionTime();
+		ResolvedCompletionTime = CompletionTime;
 		if (ResolvedCompletionTime > UE_KINDA_SMALL_NUMBER)
 		{
 			GetWorld()->GetTimerManager().SetTimer(CompletionTimerHandle, this, &UFlowNode_Timer::OnCompletion, ResolvedCompletionTime, false);
@@ -102,23 +96,6 @@ void UFlowNode_Timer::Restart()
 	RemainingCompletionTime = 0.0f;
 
 	SetTimer();
-}
-
-float UFlowNode_Timer::ResolveCompletionTime() const
-{
-	// Get the CompletionTime from either the default (property) or the data pin (if connected)
-	FFlowDataPinResult_Float CompletionTimeResult = TryResolveDataPinAsFloat(INPIN_CompletionTime);
-
-	if (CompletionTimeResult.Result == EFlowDataPinResolveResult::FailedMissingPin)
-	{
-		// Handle lookup of a UFlowNode_Timer that predated DataPins
-		CompletionTimeResult.Result = EFlowDataPinResolveResult::Success;
-		CompletionTimeResult.Value = CompletionTime;
-	}
-
-	check(CompletionTimeResult.Result == EFlowDataPinResolveResult::Success);
-
-	return static_cast<float>(CompletionTimeResult.Value);
 }
 
 void UFlowNode_Timer::OnStep()
@@ -200,13 +177,11 @@ void UFlowNode_Timer::UpdateNodeConfigText_Implementation()
 
 	if (bIsInputConnected)
 	{
-		// CompletionTime will be sourced from the data pin
-
 		if (StepTime > 0.0f)
 		{
 			const FString StepTimeString = FString::Printf(TEXT("%.*f"), 2, StepTime);
 
-			SetNodeConfigText(FText::Format(LOCTEXT("TimerConfigPinWithStep", "Step by {1}"), { FText::FromString(StepTimeString) }));
+			SetNodeConfigText(FText::Format(LOCTEXT("TimerConfigPinWithStep", "Step by {1}"), {FText::FromString(StepTimeString)}));
 		}
 		else
 		{
@@ -224,11 +199,11 @@ void UFlowNode_Timer::UpdateNodeConfigText_Implementation()
 		{
 			const FString StepTimeString = FString::Printf(TEXT("%.*f"), 2, StepTime);
 
-			SetNodeConfigText(FText::Format(LOCTEXT("TimerConfigWithStep", "Time: {0}, step by {1}"), { FText::FromString(CompletionTimeString), FText::FromString(StepTimeString) }));
+			SetNodeConfigText(FText::Format(LOCTEXT("TimerConfigWithStep", "Time: {0}, step by {1}"), {FText::FromString(CompletionTimeString), FText::FromString(StepTimeString)}));
 		}
 		else
 		{
-			SetNodeConfigText(FText::Format(LOCTEXT("TimerConfig", "Time: {0}"), { FText::FromString(CompletionTimeString) }));
+			SetNodeConfigText(FText::Format(LOCTEXT("TimerConfig", "Time: {0}"), {FText::FromString(CompletionTimeString)}));
 		}
 	}
 	else
@@ -251,7 +226,7 @@ FString UFlowNode_Timer::GetStatusString() const
 
 	if (!ProgressString.IsEmpty())
 	{
-		return FText::Format(LOCTEXT("ProgressStatus", "Progress: {0}"), { FText::FromString(ProgressString) }).ToString();
+		return FText::Format(LOCTEXT("ProgressStatus", "Progress: {0}"), {FText::FromString(ProgressString)}).ToString();
 	}
 
 	return FString();

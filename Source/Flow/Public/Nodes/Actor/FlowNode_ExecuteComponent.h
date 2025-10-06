@@ -34,8 +34,11 @@ FLOW_ENUM_RANGE_VALUES(EExecuteComponentSource)
 
 namespace EExecuteComponentSource_Classifiers
 {
-	FORCEINLINE bool DoesComponentSourceUseInjectManager(EExecuteComponentSource Source) { return FLOW_IS_ENUM_IN_SUBRANGE(Source, EExecuteComponentSource::UsesInjectManager); }
-}
+	FORCEINLINE bool DoesComponentSourceUseInjectManager(EExecuteComponentSource Source)
+	{
+		return FLOW_IS_ENUM_IN_SUBRANGE(Source, EExecuteComponentSource::UsesInjectManager);
+	}
+} // namespace EExecuteComponentSource_Classifiers
 
 /**
  * Execute a UActorComponent on the owning actor as if it was a flow subgraph
@@ -46,7 +49,6 @@ class FLOW_API UFlowNode_ExecuteComponent : public UFlowNode
 	GENERATED_BODY()
 
 public:
-
 	UFlowNode_ExecuteComponent();
 
 	// IFlowCoreExecutableInterface
@@ -64,27 +66,8 @@ public:
 	virtual void UpdateNodeConfigText_Implementation() override;
 	// --
 
-	// IFlowDataPinValueSupplierInterface
-	virtual bool CanSupplyDataPinValues_Implementation() const override;
-	virtual FFlowDataPinResult_Bool TrySupplyDataPinAsBool_Implementation(const FName& PinName) const override;
-	virtual FFlowDataPinResult_Int TrySupplyDataPinAsInt_Implementation(const FName& PinName) const override;
-	virtual FFlowDataPinResult_Float TrySupplyDataPinAsFloat_Implementation(const FName& PinName) const override;
-	virtual FFlowDataPinResult_Name TrySupplyDataPinAsName_Implementation(const FName& PinName) const override;
-	virtual FFlowDataPinResult_String TrySupplyDataPinAsString_Implementation(const FName& PinName) const override;
-	virtual FFlowDataPinResult_Text TrySupplyDataPinAsText_Implementation(const FName& PinName) const override;
-	virtual FFlowDataPinResult_Enum TrySupplyDataPinAsEnum_Implementation(const FName& PinName) const override;
-	virtual FFlowDataPinResult_Vector TrySupplyDataPinAsVector_Implementation(const FName& PinName) const override;
-	virtual FFlowDataPinResult_Rotator TrySupplyDataPinAsRotator_Implementation(const FName& PinName) const override;
-	virtual FFlowDataPinResult_Transform TrySupplyDataPinAsTransform_Implementation(const FName& PinName) const override;
-	virtual FFlowDataPinResult_GameplayTag TrySupplyDataPinAsGameplayTag_Implementation(const FName& PinName) const override;
-	virtual FFlowDataPinResult_GameplayTagContainer TrySupplyDataPinAsGameplayTagContainer_Implementation(const FName& PinName) const override;
-	virtual FFlowDataPinResult_InstancedStruct TrySupplyDataPinAsInstancedStruct_Implementation(const FName& PinName) const override;
-	virtual FFlowDataPinResult_Object TrySupplyDataPinAsObject_Implementation(const FName& PinName) const override;
-	virtual FFlowDataPinResult_Class TrySupplyDataPinAsClass_Implementation(const FName& PinName) const override;
-	// --
-
 #if WITH_EDITOR
-	// IFlowContextPinSupplierInterface	
+	// IFlowContextPinSupplierInterface
 	virtual bool SupportsContextPins() const override { return true; }
 	virtual TArray<FFlowPin> GetContextInputs() const override;
 	virtual TArray<FFlowPin> GetContextOutputs() const override;
@@ -102,9 +85,8 @@ public:
 	virtual FString GetStatusString() const override;
 	// --
 #endif // WITH_EDITOR
-	
-protected:
 
+protected:
 #if WITH_EDITOR
 	void RefreshPins();
 	const UActorComponent* TryGetExpectedComponent() const;
@@ -119,7 +101,6 @@ protected:
 	TSubclassOf<AActor> TryGetExpectedActorOwnerClass() const;
 
 protected:
-
 	// Executable Component (by name) on the expected Flow owning Actor
 	//  (the component must implement the IFlowExecutableComponentInterface)
 	UPROPERTY(EditAnywhere, Category = "Flow Executable Component", meta = (DisplayName = "Component to Execute", MustImplement = "/Script/Flow.FlowCoreExecutableInterface,/Script/Flow.FlowExternalExecutableInterface", EditConditionHides, EditCondition = "ComponentSource == EExecuteComponentSource::BindToExisting || ComponentSource == EExecuteComponentSource::Undetermined"))

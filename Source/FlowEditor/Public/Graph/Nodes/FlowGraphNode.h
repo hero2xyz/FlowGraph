@@ -28,8 +28,8 @@ class FLOWEDITOR_API UFlowGraphNode : public UEdGraphNode
 {
 	GENERATED_UCLASS_BODY()
 
-//////////////////////////////////////////////////////////////////////////
-// Flow node
+	//////////////////////////////////////////////////////////////////////////
+	// Flow node
 
 private:
 	// The FlowNode or FlowNodeAddOn runtime instance that is being edited by this UFlowGraphNode
@@ -47,7 +47,7 @@ public:
 	// However, we shouldn't assign class from editor module to runtime module class
 	UPROPERTY()
 	TArray<TSubclassOf<UFlowNodeBase>> AssignedNodeClasses;
-	
+
 	void SetNodeTemplate(UFlowNodeBase* InNodeInstance);
 	const UFlowNodeBase* GetNodeTemplate() const;
 
@@ -63,8 +63,8 @@ public:
 	virtual void PostPlacedNewNode() override;
 	virtual void PrepareForCopying() override;
 	virtual void PostPasteNode() override;
-    // --
-	
+	// --
+
 	void PostCopyNode();
 
 private:
@@ -75,8 +75,8 @@ public:
 	virtual void OnGraphRefresh();
 	virtual bool CanPlaceBreakpoints() const;
 
-//////////////////////////////////////////////////////////////////////////
-// Graph node
+	//////////////////////////////////////////////////////////////////////////
+	// Graph node
 
 public:
 	// UEdGraphNode
@@ -107,7 +107,7 @@ public:
 	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	virtual bool CanUserDeleteNode() const override;
 	virtual bool CanDuplicateNode() const override;
-	virtual bool CanPasteHere( const UEdGraph* TargetGraph ) const override;
+	virtual bool CanPasteHere(const UEdGraph* TargetGraph) const override;
 	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
@@ -123,8 +123,8 @@ public:
 protected:
 	void RebuildPinArraysOnLoad();
 
-//////////////////////////////////////////////////////////////////////////
-// Utils
+	//////////////////////////////////////////////////////////////////////////
+	// Utils
 
 public:
 	// Short summary of node's content
@@ -166,13 +166,12 @@ public:
 
 protected:
 	bool CanReconstructNode() const;
-	
+
 	bool TryUpdateNodePins() const;
-	bool TryUpdateAutoDataPins() const;
 	bool CheckGraphPinsMatchNodePins() const;
-	
-//////////////////////////////////////////////////////////////////////////
-// Pins
+
+	//////////////////////////////////////////////////////////////////////////
+	// Pins
 
 public:
 	TArray<UEdGraphPin*> InputPins;
@@ -208,18 +207,13 @@ public:
 	// @return true, if pins cannot be connected due to node's inner logic, put message for user in OutReason
 	virtual bool IsConnectionDisallowed(const UEdGraphPin* MyPin, const UEdGraphPin* OtherPin, FString& OutReason) const { return false; }
 
-protected:
-	// Gets the PinCategory from the FlowPin
-	// (accounting for FFlowPin structs that predate the PinCategory field)
-	static const FName& GetPinCategoryFromFlowPin(const FFlowPin& FlowPin);
-
-//////////////////////////////////////////////////////////////////////////
-// Execution Override
+	//////////////////////////////////////////////////////////////////////////
+	// Execution Override
 
 public:
 	FFlowGraphNodeEvent OnSignalModeChanged;
 	FFlowGraphNodeEvent OnReconstructNodeCompleted;
-	
+
 	// Pin activation forced by user during PIE
 	virtual void ForcePinActivation(const FEdGraphPinReference PinReference) const;
 
@@ -229,8 +223,8 @@ public:
 	virtual EFlowSignalMode GetSignalMode() const;
 	virtual bool CanSetSignalMode(const EFlowSignalMode Mode) const;
 
-//////////////////////////////////////////////////////////////////////////
-// SubNode Support
+	//////////////////////////////////////////////////////////////////////////
+	// SubNode Support
 
 	//~ Begin UEdGraphNode Interface
 	UFlowGraph* GetFlowGraph() const;
@@ -246,7 +240,7 @@ public:
 	void OnUpdateAsset(int32 UpdateFlags) { RebuildRuntimeAddOnsFromEditorSubNodes(); }
 	void RebuildRuntimeAddOnsFromEditorSubNodes();
 
-	static void DiffSubNodes(const FText& NodeTypeDisplayName, const TArray<UFlowGraphNode*>& LhsSubNodes,	const TArray<UFlowGraphNode*>& RhsSubNodes,	FDiffResults& Results);
+	static void DiffSubNodes(const FText& NodeTypeDisplayName, const TArray<UFlowGraphNode*>& LhsSubNodes, const TArray<UFlowGraphNode*>& RhsSubNodes, FDiffResults& Results);
 
 	//~ Begin UObject Interface
 #if WITH_EDITOR
@@ -315,9 +309,9 @@ public:
 	FString ErrorMessage;
 
 private:
-	/** parent UFlowGraphNode for this node, 
-	  * note, this is not saved, and is restored in when the graph is opened in the editor via 
-	  * UFlowGraph::RecursivelySetParentNodeForAllSubNodes */
+	/** parent UFlowGraphNode for this node,
+	 * note, this is not saved, and is restored in when the graph is opened in the editor via
+	 * UFlowGraph::RecursivelySetParentNodeForAllSubNodes */
 	UPROPERTY(Transient)
 	TObjectPtr<UFlowGraphNode> ParentNode;
 };
