@@ -34,6 +34,7 @@ public:
 	static const FName RuntimeLogTab;
 	static const FName SearchTab;
 	static const FName ValidationLogTab;
+	static const FName VariablesTab;
 	
 protected:
 	/** The Flow Asset being edited */
@@ -44,11 +45,12 @@ protected:
 	TSharedPtr<SFlowGraphEditor> GraphEditor;
 	TSharedPtr<class IDetailsView> DetailsView;
 	TSharedPtr<class SFlowPalette> Palette;
+	TSharedPtr<class SFlowGraphVariablesPanel> VariablesPanel;
 
 #if ENABLE_SEARCH_IN_ASSET_EDITOR
 	TSharedPtr<class SSearchBrowser> SearchBrowser;
 #else
-	TSharedPtr<class SFindInFlow> SearchBrowser;
+	TSharedPtr<class SFindInFlowGraph> SearchBrowser;
 #endif
 
 	/** Runtime message log, with the log listing that it reflects */
@@ -116,6 +118,7 @@ private:
 	TSharedRef<SDockTab> SpawnTab_RuntimeLog(const FSpawnTabArgs& Args) const;
 	TSharedRef<SDockTab> SpawnTab_Search(const FSpawnTabArgs& Args) const;
 	TSharedRef<SDockTab> SpawnTab_ValidationLog(const FSpawnTabArgs& Args) const;
+	TSharedRef<SDockTab> SpawnTab_Variables(const FSpawnTabArgs& Args) const;
 
 	void DoPresaveAssetUpdate();
 
@@ -127,7 +130,7 @@ protected:
 	virtual void CreateToolbar();
 	virtual void BindToolbarCommands();
 	virtual void InitalizeExtenders();
-	
+
 	virtual void RefreshAsset();
 	virtual void RefreshDetails();
 

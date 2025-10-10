@@ -44,6 +44,20 @@ class FLOW_API UFlowSettings : public UDeveloperSettings
 	UPROPERTY(EditAnywhere, config, Category = "Nodes")
 	bool bUseAdaptiveNodeTitles;
 
+	/**
+	 * Allow connecting data pins where an implicit conversion is possible (e.g., Int to Float, String to Name)
+	 * If false, only strictly compatible types can be connected. */
+	UPROPERTY(EditAnywhere, config, Category = "Connections", meta = (DisplayName = "Allow Implicit Pin Type Conversions"))
+	bool bAllowImplicitConversion = true;
+
+	/**
+	 * Allows visual connections between Object and Interface pins (in both directions) when bAllowImplicitConversion is true.
+	 * If enabled, the Flow schema allows the connection based on interface validity and relies on runtime checks for compatibility.
+	 * If disabled, K2's rules determine compatibility.
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "Connections", meta = (EditCondition = "bAllowImplicitConversion"))
+	bool bAllowObjectInterfaceConnections = false;
+
 #if WITH_EDITOR
 	DECLARE_DELEGATE(FFlowSettingsEvent);
 	FFlowSettingsEvent OnAdaptiveNodeTitlesChanged;

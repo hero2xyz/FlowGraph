@@ -4,7 +4,14 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FlowNodeBlueprint)
 
-UFlowNodeBlueprint::UFlowNodeBlueprint(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+UFlowNodeBaseBlueprint::UFlowNodeBaseBlueprint(const FObjectInitializer& ObjectInitializer)
+    : Super(ObjectInitializer)
 {
 }
+
+#if WITH_EDITOR
+UClass* UFlowNodeBaseBlueprint::GetBlueprintClass() const
+{
+	return UFlowNodeBaseBlueprintGeneratedClass::StaticClass();
+}
+#endif

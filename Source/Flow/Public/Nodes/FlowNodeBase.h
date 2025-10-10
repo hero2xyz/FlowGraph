@@ -104,6 +104,13 @@ public:
 	virtual bool SupportsContextPins() const override { return IFlowContextPinSupplierInterface::SupportsContextPins(); }
 	virtual TArray<FFlowPin> GetContextInputs() const override;
 	virtual TArray<FFlowPin> GetContextOutputs() const override;
+
+	/**
+	 * Called by the UEdGraph after it has finished its own loading process and basic setup of all nodes.
+	 * This is a safer place than PostLoad for initialization logic that depends on the fully loaded graph
+	 * or other assets that might also be in PostLoad.
+	 */
+	virtual void OnGraphLoaded() {}
 	// --
 #endif // WITH_EDITOR
 

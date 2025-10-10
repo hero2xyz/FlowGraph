@@ -25,10 +25,10 @@ UCLASS(NotBlueprintable, meta = (DisplayName = "Log", Keywords = "print"))
 class FLOW_API UFlowNode_Log : public UFlowNode
 {
 	GENERATED_UCLASS_BODY()
-	
+
 private:
 	// The message to write to the log
-	UPROPERTY(EditAnywhere, Category = "Flow")
+	UPROPERTY(EditAnywhere, Category = "Flow", meta = (FlowDataPin = "Input"))
 	FString Message;
 
 	UPROPERTY(EditAnywhere, Category = "Flow")
@@ -47,7 +47,7 @@ protected:
 	// IFlowCoreExecutableInterface
 	virtual void ExecuteInput(const FName& PinName) override;
 	// --
-
+	virtual void CachePinProperties() override;
 #if WITH_EDITOR
 public:
 	virtual void UpdateNodeConfigText_Implementation() override;

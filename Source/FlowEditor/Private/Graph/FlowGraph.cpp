@@ -153,12 +153,10 @@ void UFlowGraph::ValidateAsset(FFlowMessageLog& MessageLog)
 	}
 }
 
-void UFlowGraph::Serialize(FArchive& Ar)
+void UFlowGraph::Serialize(FStructuredArchive::FRecord Record)
 {
-	// Overridden to flags up errors in the behavior tree while cooking.
-	Super::Serialize(Ar);
-
-	if (Ar.IsSaving() || Ar.IsCooking())
+	Super::Serialize(Record);
+	if (Record.GetArchiveState().IsSaving() || Record.GetArchiveState().IsCooking())
 	{
 		// Logging of errors happens in UpdateDeprecatedClasses
 		UpdateDeprecatedClasses();
@@ -183,6 +181,7 @@ void UFlowGraph::OnLoaded()
 		if (IsValid(FlowGraphNode))
 		{
 			RecursivelySetupAllFlowGraphNodesForEditing(*FlowGraphNode);
+			FlowGraphNode->OnGraphNodeLoaded();
 		}
 	}
 

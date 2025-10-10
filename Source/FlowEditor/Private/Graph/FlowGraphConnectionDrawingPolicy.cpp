@@ -5,7 +5,6 @@
 #include "Graph/FlowGraph.h"
 #include "Graph/FlowGraphEditor.h"
 #include "Graph/FlowGraphEditorSettings.h"
-#include "Graph/FlowGraphSchema.h"
 #include "Graph/FlowGraphSettings.h"
 #include "Graph/FlowGraphUtils.h"
 #include "Graph/Nodes/FlowGraphNode.h"
@@ -18,15 +17,6 @@
 #include "Misc/App.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FlowGraphConnectionDrawingPolicy)
-
-FConnectionDrawingPolicy* FFlowGraphConnectionDrawingPolicyFactory::CreateConnectionPolicy(const class UEdGraphSchema* Schema, int32 InBackLayerID, int32 InFrontLayerID, float ZoomFactor, const class FSlateRect& InClippingRect, class FSlateWindowElementList& InDrawElements, class UEdGraph* InGraphObj) const
-{
-	if (Schema->IsA(UFlowGraphSchema::StaticClass()))
-	{
-		return new FFlowGraphConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, ZoomFactor, InClippingRect, InDrawElements, InGraphObj);
-	}
-	return nullptr;
-}
 
 /////////////////////////////////////////////////////
 // FFlowGraphConnectionDrawingPolicy
@@ -57,30 +47,38 @@ void FFlowGraphConnectionDrawingPolicy::BuildPaths()
 	if (const UFlowAsset* FlowInstance = CastChecked<UFlowGraph>(GraphObj)->GetFlowAsset()->GetInspectedInstance())
 	{
 		const double CurrentTime = FApp::GetCurrentTime();
-
-		for (const UFlowNode* Node : FlowInstance->GetRecordedNodes())
+		for (const auto NodePair : FlowInstance->GetNodes())
 		{
-			const UFlowGraphNode* FlowGraphNode = Cast<UFlowGraphNode>(Node->GetGraphNode());
-
-			for (const TPair<uint8, FPinRecord>& Record : Node->GetWireRecords())
+			const UFlowGraphNode* FlowGraphNode = Cast<UFlowGraphNode>(NodePair.Value->GetGraphNode());
+			for (const TPair<uint8, FPinRecord>& Record : FlowGraphNode->GetWireRecords())
 			{
-				if (!FlowGraphNode->OutputPins.IsValidIndex(Record.Key))
+				const uint8 PinIndexInAllPins = Record.Key;
+				const FPinRecord& PinRecordData = Record.Value;
+				if (!FlowGraphNode->Pins.IsValidIndex(PinIndexInAllPins))
 				{
-					UE_LOG(LogFlowEditor, Error, TEXT("Flow node '%s' has an invalid pin connection.  This is probably an flow editor code bug."), *Node->GetName());
-
+					UE_LOG(LogFlowEditor, Error, TEXT("Flow node '%s' - GetWireRecords returned invalid pin index %d."), *FlowGraphNode->GetName(), PinIndexInAllPins);
 					continue;
 				}
 
-				if (UEdGraphPin* OutputPin = FlowGraphNode->OutputPins[Record.Key])
+				UEdGraphPin* OutputPin = FlowGraphNode->Pins[PinIndexInAllPins];
+				if (!OutputPin || OutputPin->Direction != EGPD_Output)
 				{
-					// check if Output pin is connected to anything
-					if (OutputPin->LinkedTo.Num() > 0)
-					{
-						RecordedPaths.Emplace(OutputPin, OutputPin->LinkedTo[0]);
+					UE_LOG(LogFlowEditor, Warning, TEXT("Flow node '%s' - GetWireRecords key %d did not correspond to an output pin."), *FlowGraphNode->GetName(), PinIndexInAllPins);
+					continue;
+				}
 
-						if (CurrentTime < Record.Value.Time + RecentWireDuration)
+				if (OutputPin->LinkedTo.Num() > 0)
+				{
+					const bool bIsRecent = (CurrentTime < PinRecordData.Time + RecentWireDuration);
+					for (UEdGraphPin* LinkedPin : OutputPin->LinkedTo)
+					{
+						if (LinkedPin)
 						{
-							RecentPaths.Emplace(OutputPin, OutputPin->LinkedTo[0]);
+							RecordedPaths.Add(OutputPin, LinkedPin);
+							if (bIsRecent)
+							{
+								RecentPaths.Add(OutputPin, LinkedPin);
+							}
 						}
 					}
 				}
@@ -151,7 +149,6 @@ void FFlowGraphConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Output
 	else
 	{
 		Params.WireColor = Schema->GetPinTypeColor(OutputPin->PinType);
-
 		if (Cast<UFlowGraphNode>(OutputPin->GetOwningNode())->GetSignalMode() == EFlowSignalMode::Disabled)
 		{
 			Params.WireColor *= 0.5f;
@@ -159,31 +156,47 @@ void FFlowGraphConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Output
 		}
 		else if (InputPin)
 		{
-			// selected paths
-			if (SelectedPaths.Contains(OutputPin) || SelectedPaths.Contains(InputPin))
+			const bool bIsDataPin = InputPin->PinType.PinCategory != UEdGraphSchema_K2::PC_Exec;
+			if (ContainsPair(SelectedPaths, OutputPin, InputPin) || ContainsPair(SelectedPaths, InputPin, OutputPin))
 			{
-				Params.WireColor = SelectedColor;
+				if (!bIsDataPin)
+				{
+					Params.WireColor = SelectedColor;
+				}
 				Params.WireThickness = SelectedWireThickness;
 				Params.bDrawBubbles = false;
 			}
-			// recent paths
-			else if (RecentPaths.Contains(OutputPin) && RecentPaths[OutputPin] == InputPin)
+			// Recent paths
+			else if (ContainsPair(RecentPaths, OutputPin, InputPin))
 			{
-				Params.WireColor = RecentColor;
+				if (!bIsDataPin)
+				{
+					Params.WireColor = RecentColor;
+					Params.bDrawBubbles = true;
+				}
+				else
+				{
+					Params.bDrawBubbles = true;
+				}
 				Params.WireThickness = RecentWireThickness;
-				Params.bDrawBubbles = true;
 			}
-			// all paths, showing graph history
-			else if (RecordedPaths.Contains(OutputPin) && RecordedPaths[OutputPin] == InputPin)
+			// All paths, showing graph history
+			else if (ContainsPair(RecordedPaths, OutputPin, InputPin))
 			{
-				Params.WireColor = RecordedColor;
+				if (!bIsDataPin)
+				{
+					Params.WireColor = RecordedColor;
+				}
 				Params.WireThickness = RecordedWireThickness;
 				Params.bDrawBubbles = false;
 			}
 			// It's not followed, fade it and keep it thin
 			else
 			{
-				Params.WireColor = InactiveColor;
+				if (!bIsDataPin)
+				{
+					Params.WireColor = InactiveColor;
+				}
 				Params.WireThickness = InactiveWireThickness;
 			}
 		}
@@ -395,4 +408,16 @@ bool FFlowGraphConnectionDrawingPolicy::GetAverageConnectedPosition(UFlowGraphNo
 	{
 		return false;
 	}
+}
+
+bool FFlowGraphConnectionDrawingPolicy::ContainsPair(const TMultiMap<UEdGraphPin*, UEdGraphPin*>& InMultiMap, const UEdGraphPin* OutputPin, const UEdGraphPin* InputPin)
+{
+	for (auto It = InMultiMap.CreateConstKeyIterator(OutputPin); It; ++It)
+	{
+		if (It.Value() == InputPin)
+		{
+			return true;
+		}
+	}
+	return false;
 }

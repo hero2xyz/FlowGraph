@@ -53,6 +53,14 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Nodes", meta = (EditCondition = "bShowSubGraphPreview"))
 	bool bShowSubGraphPath;
 	
+	// Always sort execution pins to appear before data pins
+	UPROPERTY(config, EditAnywhere, Category = "Nodes", meta = (DisplayName = "Sort Exec Pins First"))
+	bool bSortExecPinsFirst;
+
+	// Sort pins alphabetically by name within their type group
+	UPROPERTY(config, EditAnywhere, Category = "Nodes", meta = (EditCondition = "bSortExecPinsFirst", DisplayName = "Sort Pins Alphabetically"))
+	bool bSortPinsByName;
+
 	UPROPERTY(config, EditAnywhere, Category = "Nodes", meta = (EditCondition = "bShowSubGraphPreview"))
 	FVector2D SubGraphPreviewSize;
 

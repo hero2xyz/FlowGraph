@@ -13,7 +13,7 @@ UFlowNode_Start::UFlowNode_Start(const FObjectInitializer& ObjectInitializer)
 	bCanDelete = bCanDuplicate = false;
 #endif
 
-	InputPins = {};
+	OutputPins = {UFlowNode::DefaultOutputPin};
 }
 
 void UFlowNode_Start::ExecuteInput(const FName& PinName)

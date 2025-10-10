@@ -3,9 +3,7 @@
 #pragma once
 
 #include "EdGraph/EdGraphSchema.h"
-#include "Runtime/Launch/Resources/Version.h"
 #include "Templates/SubclassOf.h"
-
 #include "FlowGraphSchema.generated.h"
 
 class UFlowAsset;
@@ -44,6 +42,8 @@ public:
 	virtual const FPinConnectionResponse CanMergeNodes(const UEdGraphNode* NodeA, const UEdGraphNode* NodeB) const override;
 	virtual bool TryCreateConnection(UEdGraphPin* A, UEdGraphPin* B) const override;
 	virtual bool ShouldHidePinDefaultValue(UEdGraphPin* Pin) const override;
+	virtual FLinearColor GetPinTypeColor(const FEdGraphPinType& PinType) const override;
+	virtual FLinearColor GetSecondaryPinTypeColor(const FEdGraphPinType& PinType) const override;
 	virtual FText GetPinDisplayName(const UEdGraphPin* Pin) const override;
 	virtual void BreakNodeLinks(UEdGraphNode& TargetNode) const override;
 	virtual void BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotification) const override;
@@ -62,8 +62,9 @@ public:
 	virtual void ForceVisualizationCacheClear() const override;
 	virtual bool ArePinsCompatible(const UEdGraphPin* PinA, const UEdGraphPin* PinB, const UClass* CallingContext = nullptr, bool bIgnoreArray = false) const override;
 	virtual void ConstructBasicPinTooltip(const UEdGraphPin& Pin, const FText& PinDescription, FString& TooltipOut) const override;
-	virtual FLinearColor GetPinTypeColor(const FEdGraphPinType& PinType) const override;
-	virtual FLinearColor GetSecondaryPinTypeColor(const FEdGraphPinType& PinType) const override;
+	virtual bool IsTitleBarPin(const UEdGraphPin& Pin) const override;
+	virtual bool CanShowDataTooltipForPin(const UEdGraphPin& Pin) const override;
+	virtual class FConnectionDrawingPolicy* CreateConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float InZoomFactor, const FSlateRect& InClippingRect, class FSlateWindowElementList& InDrawElements, class UEdGraph* InGraphObj) const override;
 	// --
 
 	// FlowGraphSchema
@@ -79,7 +80,7 @@ public:
 	 *
 	 * @return	The message and action to take on trying to make this connection.
 	 */
-	virtual const FPinConnectionResponse DetermineConnectionResponseOfCompatibleTypedPins(const UEdGraphPin* PinA, const UEdGraphPin* PinB, const UEdGraphPin* InputPin, const UEdGraphPin* OutputPin) const;
+	virtual FPinConnectionResponse DetermineConnectionResponseOfCompatibleTypedPins(const UEdGraphPin* PinA, const UEdGraphPin* PinB, const UEdGraphPin* InputPin, const UEdGraphPin* OutputPin) const;
 
 	virtual void GetGraphNodeContextActions(FGraphContextMenuBuilder& ContextMenuBuilder, int32 SubNodeFlags) const;
 
@@ -87,6 +88,24 @@ public:
 
 	static bool IsAddOnAllowedForSelectedObjects(const TArray<UObject*>& SelectedObjects, const UFlowNodeAddOn* AddOnTemplate);
 
+	/**
+	 * Checks if an implicit data type conversion is supported by the Flow runtime between two non-container pin types.
+	 *
+	 * This function only checks cross-category conversions handled by FlowPropertyUtils::PerformTransfer,
+	 * such as Int → Float or Int → String.
+	 *
+	 * It excludes:
+	 * - Same-type compatibility (e.g., Int → Int).
+	 * - Containers, wildcards.
+	 * - Any logic handled by UEdGraphSchema_K2::ArePinsCompatible.
+	 *
+	 * @param SourcePinType The pin type definition of the source.
+	 * @param TargetPinType The pin type definition of the target.
+	 * @return True if the Flow runtime supports an implicit conversion between these types.
+	 * @note This must be kept in sync with the cross-category conversion capabilities of
+	 *       FFlowPropertyUtils::PerformTransfer.
+	 */
+	static bool CanRuntimePerformImplicitConversion(const FEdGraphPinType& SourcePinType, const FEdGraphPinType& TargetPinType);
 	// --
 
 	static void UpdateGeneratedDisplayNames();
@@ -99,6 +118,7 @@ public:
 
 protected:
 	static UFlowGraphNode* CreateDefaultNode(UEdGraph& Graph, const TSubclassOf<UFlowNode>& NodeClass, const FVector2D& Offset, bool bPlacedAsGhostNode);
+	UEdGraphNode* CreateConversionNode(UEdGraph* ParentGraph, const FVector2D& Location, const FEdGraphPinType& InputType, const FEdGraphPinType& OutputType) const;
 
 private:
 	static void ApplyNodeOrAddOnFilter(const UFlowAsset* AssetClassDefaults, const UClass* FlowNodeClass, TArray<UFlowNodeBase*>& FilteredNodes);

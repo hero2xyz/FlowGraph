@@ -11,6 +11,7 @@
 #include "Nodes/FlowPin.h"
 #include "FlowGraphNode.generated.h"
 
+struct FPropertyBagPropertyDesc;
 class UEdGraphSchema;
 class UFlowGraph;
 class UFlowNodeBase;
@@ -19,6 +20,46 @@ class UFlowAsset;
 class FFlowMessageLog;
 
 DECLARE_DELEGATE(FFlowGraphNodeEvent);
+
+// Helper structure for pin signature comparison
+struct FFlowPinSignature
+{
+	FName PinName = NAME_None;
+	FEdGraphPinType PinType;
+	EEdGraphPinDirection Direction = EGPD_Input;
+
+	FFlowPinSignature() = default;
+	FFlowPinSignature(const FName InName, const FEdGraphPinType& InType, EEdGraphPinDirection InDirection)
+	    : PinName(InName), PinType(InType), Direction(InDirection) {}
+
+	bool operator==(const FFlowPinSignature& Other) const
+	{
+		return PinType == Other.PinType && PinName == Other.PinName && Direction == Other.Direction;
+	}
+
+	bool operator<(const FFlowPinSignature& Other) const
+	{
+		if (Direction != Other.Direction)
+		{
+			return Direction < Other.Direction;
+		}
+		if (PinName != Other.PinName)
+		{
+			return PinName.LexicalLess(Other.PinName);
+		}
+		return FMemory::Memcmp(&PinType, &Other.PinType, sizeof(FEdGraphPinType)) < 0;
+	}
+
+	friend uint32 GetTypeHash(const FFlowPinSignature& Sig)
+	{
+		uint32 Hash = GetTypeHash(Sig.PinName);
+		Hash = HashCombine(Hash, GetTypeHash(Sig.Direction));
+		Hash = HashCombine(Hash, GetTypeHash(Sig.PinType.PinCategory));
+		Hash = HashCombine(Hash, GetTypeHash(Sig.PinType.PinSubCategoryObject));
+		Hash = HashCombine(Hash, GetTypeHash(Sig.PinType.ContainerType));
+		return Hash;
+	}
+};
 
 /**
  * Graph representation of the Flow Node
@@ -75,6 +116,12 @@ public:
 	virtual void OnGraphRefresh();
 	virtual bool CanPlaceBreakpoints() const;
 
+	/**
+	 * Called by the UFlowGraph after it has finished its own loading process.
+	 * Propagates the call to the NodeInstance.
+	 */
+	virtual void OnGraphNodeLoaded();
+
 	//////////////////////////////////////////////////////////////////////////
 	// Graph node
 
@@ -96,6 +143,7 @@ public:
 	// UEdGraphNode
 	virtual void ReconstructNode() override;
 	virtual void AllocateDefaultPins() override;
+	virtual void PinDefaultValueChanged(UEdGraphPin* Pin) override;
 	// --
 
 	// variants of K2Node methods
@@ -121,7 +169,7 @@ public:
 	bool IsAncestorNode(const UFlowGraphNode& OtherNode) const;
 
 protected:
-	void RebuildPinArraysOnLoad();
+	void RebuildPinArrays();
 
 	//////////////////////////////////////////////////////////////////////////
 	// Utils
@@ -164,11 +212,43 @@ public:
 
 	void ValidateGraphNode(FFlowMessageLog& MessageLog) const;
 
+	/**
+	 * Generates a map from the visual pin index (in the Pins array) to the last activation record
+	 * for output pins.
+	 * @return Map where Key=uint8(index in the Pins array), Value=FPinRecord of last activation.
+	 */
+	TMap<uint8, FPinRecord> GetWireRecords() const;
+
 protected:
 	bool CanReconstructNode() const;
 
-	bool TryUpdateNodePins() const;
-	bool CheckGraphPinsMatchNodePins() const;
+	/**
+	 * Gathers the definitive list of all pins (explicit, property-derived, context)
+	 * that this graph node should represent, including their correct FEdGraphPinType.
+	 * This is the single source of truth for pin definitions in the editor.
+	 *
+	 * @param OutInputPins Array to populate with FFlowPin definitions for expected input pins.
+	 * @param OutOutputPins Array to populate with FFlowPin definitions for expected output pins.
+	 * @return True if gathering was successful, false otherwise.
+	 */
+	virtual bool GatherAllExpectedPins(TArray<FFlowPin>& OutInputPins, TArray<FFlowPin>& OutOutputPins) const;
+	virtual void SpecializeNewlyAllocatedPinTypes(const TArray<UEdGraphPin*>& OldVisualPins);
+	void SyncPropertyValueToPin(UEdGraphPin* Pin) const;
+	
+	/** Synchronizes a pin's default value from its backing UPROPERTY on the FlowNode instance. */
+	void SyncPinDefaultValueFromProperty(const FProperty* Property);
+	
+	/** Handler for when a property on the runtime node instance changes */
+	void OnNodeInstancePropertyChanged(const FProperty* PropertyChanged);
+	
+	/** Gathers the complete list of expected pin signatures (Name, Type, Direction) */
+	void GetExpectedPinSignatures(TSet<FFlowPinSignature>& OutExpectedPins) const;
+
+	/** Checks if the current visual pins match the expected pin signatures. */
+	bool DoVisualPinsMatchExpected(const TSet<FFlowPinSignature>& ExpectedPins) const;
+
+	/** @return Blueprint pin type from a property descriptor. */
+	static FEdGraphPinType GetPropertyDescAsPin(const FPropertyBagPropertyDesc& Desc);
 
 	//////////////////////////////////////////////////////////////////////////
 	// Pins

@@ -27,12 +27,13 @@
 #include "PropertyEditorModule.h"
 #include "FlowEditorModule.h"
 #include "ToolMenus.h"
+#include "Graph/Widgets/SFlowGraphVariablesPanel.h"
 #include "Widgets/Docking/SDockTab.h"
 
 #if ENABLE_SEARCH_IN_ASSET_EDITOR
 #include "Source/Private/Widgets/SSearchBrowser.h"
 #else
-#include "Find/FindInFlow.h"
+#include "Find/SFindInFlowGraph.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "FlowAssetEditor"
@@ -43,6 +44,7 @@ const FName FFlowAssetEditor::PaletteTab(TEXT("Palette"));
 const FName FFlowAssetEditor::RuntimeLogTab(TEXT("RuntimeLog"));
 const FName FFlowAssetEditor::SearchTab(TEXT("Search"));
 const FName FFlowAssetEditor::ValidationLogTab(TEXT("ValidationLog"));
+const FName FFlowAssetEditor::VariablesTab(TEXT("Variables"));
 
 FFlowAssetEditor::FFlowAssetEditor()
 	: FlowAsset(nullptr)
@@ -136,6 +138,11 @@ void FFlowAssetEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& 
 				.SetDisplayName(LOCTEXT("ValidationLog", "Validation Log"))
 				.SetGroup(WorkspaceMenuCategoryRef)
 				.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Debug"));
+	
+	InTabManager->RegisterTabSpawner(VariablesTab, FOnSpawnTab::CreateSP(this, &FFlowAssetEditor::SpawnTab_Variables))
+				.SetDisplayName(LOCTEXT("VariablesTab", "Graph Variables"))
+				.SetGroup(WorkspaceMenuCategoryRef)
+				.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Kismet.Tabs.Variables"));
 }
 
 void FFlowAssetEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -147,6 +154,7 @@ void FFlowAssetEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>
 	InTabManager->UnregisterTabSpawner(ValidationLogTab);
 	InTabManager->UnregisterTabSpawner(PaletteTab);
 	InTabManager->UnregisterTabSpawner(SearchTab);
+	InTabManager->UnregisterTabSpawner(VariablesTab);
 }
 
 void FFlowAssetEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
@@ -188,6 +196,7 @@ void FFlowAssetEditor::SaveAsset_Execute()
 
 	FAssetEditorToolkit::SaveAsset_Execute();
 }
+
 void FFlowAssetEditor::SaveAssetAs_Execute()
 {
 	DoPresaveAssetUpdate();
@@ -291,6 +300,17 @@ TSharedRef<SDockTab> FFlowAssetEditor::SpawnTab_ValidationLog(const FSpawnTabArg
 		];
 }
 
+TSharedRef<SDockTab> FFlowAssetEditor::SpawnTab_Variables(const FSpawnTabArgs& Args) const
+{
+	check(Args.GetTabId() == VariablesTab);
+
+	return SNew(SDockTab)
+		.Label(LOCTEXT("FlowVariablesTitle", "Graph Variables"))
+		[
+			VariablesPanel.ToSharedRef()
+		];
+}
+
 void FFlowAssetEditor::InitFlowAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit)
 {
 	FlowAsset = CastChecked<UFlowAsset>(ObjectToEdit);
@@ -314,15 +334,27 @@ void FFlowAssetEditor::InitFlowAssetEditor(const EToolkitMode::Type Mode, const 
 
 	CreateWidgets();
 
-	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("FlowAssetEditor_Layout_v5.1")
+	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("FlowAssetEditor_Layout_v5.2")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Horizontal)
 										->Split
 										(
-											FTabManager::NewStack()
+										FTabManager::NewSplitter()
+											->SetOrientation(Orient_Vertical)
 											->SetSizeCoefficient(0.225f)
-											->AddTab(DetailsTab, ETabState::OpenedTab)
+											->Split
+											(
+												FTabManager::NewStack()
+												->SetSizeCoefficient(0.5f)
+												->AddTab(DetailsTab, ETabState::OpenedTab)
+											)
+											->Split
+											(
+												FTabManager::NewStack()
+												->SetSizeCoefficient(0.5f)
+												->AddTab(VariablesTab, ETabState::OpenedTab)
+											)
 										)
 										->Split
 										(
@@ -368,7 +400,7 @@ void FFlowAssetEditor::InitFlowAssetEditor(const EToolkitMode::Type Mode, const 
 	InitAssetEditor(Mode, InitToolkitHost, TEXT("FlowEditorApp"), StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, ObjectToEdit, false);
 
 	InitalizeExtenders();
-	
+
 	RegenerateMenusAndToolbars();
 }
 
@@ -518,11 +550,14 @@ void FFlowAssetEditor::CreateWidgets()
 	// Palette
 	Palette = SNew(SFlowPalette, SharedThis(this));
 
+	// Variables
+	VariablesPanel = SNew(SFlowGraphVariablesPanel, SharedThis(this));
+
 	// Search
 #if ENABLE_SEARCH_IN_ASSET_EDITOR
 	SearchBrowser = SNew(SSearchBrowser, GetFlowAsset());
 #else
-	SearchBrowser = SNew(SFindInFlow, SharedThis(this));
+	SearchBrowser = SNew(SFindInFlowGraph, SharedThis(this));
 #endif
 
 	// Logs

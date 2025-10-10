@@ -10,6 +10,7 @@
 	#include "FlowMessageLog.h"
 #endif
 
+#include "StructUtils/PropertyBag.h"
 #include "UObject/ObjectKey.h"
 #include "FlowAsset.generated.h"
 
@@ -23,7 +24,7 @@ class UEdGraphNode;
 class UFlowAsset;
 
 #if !UE_BUILD_SHIPPING
-DECLARE_DELEGATE(FFlowGraphEvent);
+DECLARE_EVENT(UFlowAsset, FFlowGraphEvent);
 DECLARE_DELEGATE_TwoParams(FFlowSignalEvent, const FGuid& /*NodeGuid*/, const FName& /*PinName*/);
 #endif
 
@@ -142,6 +143,32 @@ public:
 
 	// Processes nodes and updates pin connections from the graph to the UFlowNode (processes all nodes in the graph if passed nullptr)
 	void HarvestNodeConnections(UFlowNode* TargetNode = nullptr);
+	
+	/// Harvesting helpers
+	
+	/** Gathers all input and output connections from a graph node */
+	static void GatherNodeConnections(UEdGraphNode* GraphNode, const UFlowAsset* OwningAsset, TMap<FName, FConnectedPin>& OutInputs, TMap<FName, FPinConnectionList>& OutOutputs);
+
+	/** Applies gathered connections to a runtime node if changes are detected */
+	static bool ApplyConnectionChanges(UFlowNode* RuntimeNode, const TMap<FName, FConnectedPin>& NewInputs, const TMap<FName, FPinConnectionList>& NewOutputs);
+
+	/** Updates input connections on target nodes when a source node's outputs change*/
+	static void UpdateTargetNodesInputs(const UFlowAsset* OwningAsset, const FGuid& SourceNodeGuid, const TMap<FName, FPinConnectionList>& Outputs, TSet<UFlowNode*>& OutModifiedNodes);
+
+#endif
+
+	/**
+	 * Global variables for this graph.
+	 * @note Managed by the Variables Panel, not intended to be edited directly.
+	 */
+	UPROPERTY()
+	FInstancedPropertyBag GraphVariables;
+	
+#if WITH_EDITORONLY_DATA
+public:
+	/** Delegate fired when the graph variable definitions change (add, remove, rename). Editor-only. */
+	DECLARE_EVENT(UFlowAsset, FOnGraphVariablesChanged);
+	FOnGraphVariablesChanged OnGraphVariablesChanged;
 #endif
 
 public:

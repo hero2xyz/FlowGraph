@@ -3,8 +3,6 @@
 #pragma once
 
 #include "ConnectionDrawingPolicy.h"
-#include "EdGraphUtilities.h"
-#include "Runtime/Launch/Resources/Version.h"
 
 UENUM()
 enum class EFlowConnectionDrawType : uint8
@@ -12,18 +10,6 @@ enum class EFlowConnectionDrawType : uint8
 	Default,
 	Circuit
 };
-
-struct FLOWEDITOR_API FFlowGraphConnectionDrawingPolicyFactory : public FGraphPanelPinConnectionFactory
-{
-	virtual ~FFlowGraphConnectionDrawingPolicyFactory() override
-	{
-	}
-
-	virtual class FConnectionDrawingPolicy* CreateConnectionPolicy(const class UEdGraphSchema* Schema, int32 InBackLayerID, int32 InFrontLayerID, float ZoomFactor, const class FSlateRect& InClippingRect, class FSlateWindowElementList& InDrawElements, class UEdGraph* InGraphObj) const override;
-};
-
-class FSlateWindowElementList;
-class UEdGraph;
 
 // This class draws the connections between nodes
 class FLOWEDITOR_API FFlowGraphConnectionDrawingPolicy : public FConnectionDrawingPolicy
@@ -42,9 +28,9 @@ class FLOWEDITOR_API FFlowGraphConnectionDrawingPolicy : public FConnectionDrawi
 
 	// runtime values
 	UEdGraph* GraphObj;
-	TMap<UEdGraphPin*, UEdGraphPin*> RecentPaths;
-	TMap<UEdGraphPin*, UEdGraphPin*> RecordedPaths;
-	TMap<UEdGraphPin*, UEdGraphPin*> SelectedPaths;
+	TMultiMap<UEdGraphPin*, UEdGraphPin*> RecentPaths;
+	TMultiMap<UEdGraphPin*, UEdGraphPin*> RecordedPaths;
+	TMultiMap<UEdGraphPin*, UEdGraphPin*> SelectedPaths;
 
 	//Used to help reversing pins on nodes that go backwards
 	TMap<class UFlowGraphNode_Reroute*, bool> RerouteToReversedDirectionMap;
@@ -72,4 +58,5 @@ protected:
 	bool ShouldChangeTangentForReroute(class UFlowGraphNode_Reroute* Reroute);
 	bool FindPinCenter(const UEdGraphPin* Pin, FVector2D& OutCenter) const;
 	bool GetAverageConnectedPosition(class UFlowGraphNode_Reroute* Reroute, EEdGraphPinDirection Direction, FVector2D& OutPos) const;
+	static bool ContainsPair(const TMultiMap<UEdGraphPin*, UEdGraphPin*>& InMultiMap, const UEdGraphPin* OutputPin, const UEdGraphPin* InputPin);
 };

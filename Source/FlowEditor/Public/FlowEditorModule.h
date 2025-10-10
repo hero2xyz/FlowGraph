@@ -43,6 +43,7 @@ public:
 
 private:
 	void TrySetFlowNodeDisplayStyleDefaults() const;
+	void OnEditorInitialized(double Value);
 
 	void RegisterAssets();
 	void UnregisterAssets();
@@ -56,6 +57,7 @@ private:
 public:
 	FDelegateHandle FlowTrackCreateEditorHandle;
 	FDelegateHandle ModulesChangedHandle;
+	FDelegateHandle VariableCustomizationHandle;
 
 private:
 	void ModulesChangesCallback(FName ModuleName, EModuleChangeReason ReasonForChange) const;

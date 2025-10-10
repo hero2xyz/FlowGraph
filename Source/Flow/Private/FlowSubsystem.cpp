@@ -13,6 +13,8 @@
 #include "Engine/World.h"
 #include "Logging/MessageLog.h"
 #include "Misc/Paths.h"
+#include "Nodes/Graph/FlowNode_DefineProperties.h"
+#include "Types/FlowPropertyUtils.h"
 #include "UObject/UObjectHash.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FlowSubsystem)
@@ -93,6 +95,22 @@ void UFlowSubsystem::StartRootFlow(UObject* Owner, UFlowAsset* FlowAsset, const 
 #endif
 }
 
+UFlowAsset* UFlowSubsystem::StartRootFlowWithParameters(UObject* Owner, UFlowAsset* FlowAsset, const FInstancedPropertyBag& Parameters, const bool bAllowMultipleInstances)
+{
+	if (UFlowAsset* NewFlow = CreateRootFlow(Owner, FlowAsset, bAllowMultipleInstances))
+	{
+		// Copy parameters into the EntryNode node before starting
+		if (UFlowNode_DefineProperties* EntryNode = Cast<UFlowNode_DefineProperties>(NewFlow->GetDefaultEntryNode()))
+		{
+			PropertyBagUtils::CopyMatchingProperties(Parameters, EntryNode->GetOutputProperties(), true, false);
+		}
+        
+		NewFlow->StartFlow();
+		return NewFlow;
+	}
+	return nullptr;
+}
+
 UFlowAsset* UFlowSubsystem::CreateRootFlow(UObject* Owner, UFlowAsset* FlowAsset, const bool bAllowMultipleInstances, const FString& NewInstanceName)
 {
 	for (const TPair<UFlowAsset*, TWeakObjectPtr<UObject>>& RootInstance : ObjectPtrDecay(RootInstances))
@@ -155,6 +173,120 @@ void UFlowSubsystem::FinishAllRootFlows(UObject* Owner, const EFlowFinishPolicy 
 	{
 		RootInstances.Remove(InstanceToFinish);
 		InstanceToFinish->FinishFlow(FinishPolicy);
+	}
+}
+
+UFlowAsset* UFlowSubsystem::GetOrCreateSubFlowInstance(UFlowNode_SubGraph* SubGraphNode, const FString& SavedInstanceName, bool& bNeedsLoadingOutput)
+{
+	bNeedsLoadingOutput = false;
+	UFlowAsset* FoundInstance;
+
+	if (const TObjectPtr<UFlowAsset>* ExistingInstancePtr = InstancedSubFlows.Find(SubGraphNode))
+	{
+		FoundInstance = *ExistingInstancePtr;
+		if (!IsValid(FoundInstance))
+		{
+			InstancedSubFlows.Remove(SubGraphNode);
+			FoundInstance = nullptr;
+			UE_LOG(LogFlow, Warning, TEXT("GetOrCreateSubFlowInstance: Found invalid instance for node %s. Will recreate."), *SubGraphNode->GetName());
+		}
+		else
+		{
+			FoundInstance->NodeOwningThisAssetInstance = SubGraphNode;
+			if (UFlowAsset* OwnerAsset = SubGraphNode->GetFlowAsset())
+			{
+				OwnerAsset->ActiveSubGraphs.Add(SubGraphNode, FoundInstance);
+			}
+			return FoundInstance;
+		}
+	}
+
+	const TWeakObjectPtr<UObject> Owner = SubGraphNode->GetFlowAsset() ? SubGraphNode->GetFlowAsset()->GetOwner() : nullptr;
+	UFlowAsset* AssetTemplate = SubGraphNode->Asset.LoadSynchronous();
+	if (!AssetTemplate)
+	{
+		UE_LOG(LogFlow, Error, TEXT("GetOrCreateSubFlowInstance: Failed to load Asset Template %s for node %s."), *SubGraphNode->Asset.ToString(), *SubGraphNode->GetName());
+		return nullptr;
+	}
+
+	// Use SavedInstanceName if provided and valid for creation, otherwise generate a unique name
+	FString InstanceNameToCreate = SavedInstanceName;
+	if (InstanceNameToCreate.IsEmpty() || InstanceNameToCreate == FName(NAME_None).ToString())
+	{
+		InstanceNameToCreate = FString();
+	}
+
+	FoundInstance = CreateFlowInstance(Owner, AssetTemplate, InstanceNameToCreate);
+	if (FoundInstance)
+	{
+		InstancedSubFlows.Add(SubGraphNode, FoundInstance);
+		FoundInstance->NodeOwningThisAssetInstance = SubGraphNode;
+		if (UFlowAsset* OwnerAsset = SubGraphNode->GetFlowAsset())
+		{
+			OwnerAsset->ActiveSubGraphs.Add(SubGraphNode, FoundInstance);
+		}
+
+		if (!SavedInstanceName.IsEmpty())
+		{
+			// We successfully created an instance object that should match the saved name.
+			bNeedsLoadingOutput = true;
+		}
+	}
+	else
+	{
+		UE_LOG(LogFlow, Error, TEXT("GetOrCreateSubFlowInstance: CreateFlowInstance failed for node %s."), *SubGraphNode->GetName());
+	}
+	return FoundInstance;
+}
+
+void UFlowSubsystem::StartSubFlowInstance(UFlowAsset* SubGraphInstance)
+{
+	if (SubGraphInstance && !SubGraphInstance->HasStartedFlow())
+	{
+		SubGraphInstance->StartFlow();
+	}
+	else if (SubGraphInstance)
+	{
+		UE_LOG(LogFlow, Log, TEXT("StartSubFlowInstance: Instance %s already started. Skipping."), *SubGraphInstance->GetName());
+	}
+}
+
+void UFlowSubsystem::TriggerSubFlowCustomInput(UFlowAsset* SubGraphInstance, FName EventName)
+{
+	if (SubGraphInstance)
+	{
+		SubGraphInstance->TriggerCustomInput(EventName);
+	}
+}
+
+void UFlowSubsystem::LoadFlowInstanceFromSaveData(UFlowAsset* InstanceToLoad, const FString& InstanceName) const
+{
+	if (!InstanceToLoad || InstanceName.IsEmpty() || !LoadedSaveGame)
+	{
+		UE_LOG(LogFlow, Warning, TEXT("LoadFlowInstanceFromSaveData: Invalid parameters or no save game loaded. Instance: %s, Name: %s"), *GetNameSafe(InstanceToLoad), *InstanceName);
+		return;
+	}
+
+	bool bFoundRecord = false;
+	if (!LoadedSaveGame)
+	{
+		return;
+	}
+	for (const FFlowAssetSaveData& AssetRecord : LoadedSaveGame->FlowInstances)
+	{
+		if (AssetRecord.InstanceName == InstanceName)
+		{
+			if (InstanceToLoad->IsBoundToWorld() == false || AssetRecord.WorldName == GetWorld()->GetName())
+			{
+				InstanceToLoad->LoadInstance(AssetRecord);
+				bFoundRecord = true;
+				break;
+			}
+		}
+	}
+	if (!bFoundRecord)
+	{
+		UE_LOG(LogFlow, Warning, TEXT("LoadFlowInstanceFromSaveData: No save record found for instance name %s"), *InstanceName);
 	}
 }
 

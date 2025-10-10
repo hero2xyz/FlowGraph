@@ -1,6 +1,8 @@
 // Copyright https://github.com/MothCocoon/FlowGraph/graphs/contributors
 
 #include "Nodes/Route/FlowNode_Timer.h"
+
+#include "FlowNodeMacros.h"
 #include "FlowSettings.h"
 
 #include "Engine/World.h"
@@ -60,6 +62,12 @@ void UFlowNode_Timer::ExecuteInput(const FName& PinName)
 	{
 		Restart();
 	}
+}
+
+void UFlowNode_Timer::CachePinProperties()
+{
+	Super::CachePinProperties();
+	DECLARE_INPUT_PIN(CompletionTime);
 }
 
 void UFlowNode_Timer::SetTimer()

@@ -5,6 +5,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FlowNode_CustomEventBase)
 
+#define LOCTEXT_NAMESPACE "FlowNode_CustomEventBase"
+
 UFlowNode_CustomEventBase::UFlowNode_CustomEventBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -13,6 +15,8 @@ UFlowNode_CustomEventBase::UFlowNode_CustomEventBase(const FObjectInitializer& O
 	NodeDisplayStyle = FlowNodeStyle::InOut;
 #endif
 
+	InputPins = {DefaultInputPin};
+	OutputPins = {DefaultOutputPin};
 	AllowedSignalModes = {EFlowSignalMode::Enabled, EFlowSignalMode::Disabled};
 }
 
@@ -52,3 +56,5 @@ EDataValidationResult UFlowNode_CustomEventBase::ValidateNode()
 	return EDataValidationResult::Valid;
 }
 #endif
+
+#undef LOCTEXT_NAMESPACE

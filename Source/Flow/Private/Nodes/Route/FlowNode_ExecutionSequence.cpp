@@ -5,8 +5,7 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FlowNode_ExecutionSequence)
 
 UFlowNode_ExecutionSequence::UFlowNode_ExecutionSequence(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-	, bSavePinExecutionState(true)
+    : Super(ObjectInitializer), bSavePinExecutionState(true)
 {
 #if WITH_EDITOR
 	Category = TEXT("Route");
@@ -50,11 +49,16 @@ void UFlowNode_ExecutionSequence::ExecuteNewConnections()
 {
 	for (const FFlowPin& Output : OutputPins)
 	{
-		const FConnectedPin& Connection = GetConnection(Output.PinName);
-		if (!ExecutedConnections.Contains(Connection.NodeGuid))
+		if (const FPinConnectionList* ConnectionList = OutputConnections.Find(Output.PinName))
 		{
-			ExecutedConnections.Emplace(Connection.NodeGuid);
-			TriggerOutput(Output.PinName, false);
+			for (const FConnectedPin& TargetConnection : ConnectionList->Connections)
+			{
+				if (!ExecutedConnections.Contains(TargetConnection.NodeGuid))
+				{
+					ExecutedConnections.Emplace(TargetConnection.NodeGuid);
+					TriggerOutput(Output.PinName, false);
+				}
+			}
 		}
 	}
 

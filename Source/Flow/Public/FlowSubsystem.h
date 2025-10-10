@@ -7,6 +7,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 
 #include "FlowComponent.h"
+#include "StructUtils/PropertyBag.h"
 #include "FlowSubsystem.generated.h"
 
 class UFlowAsset;
@@ -75,6 +76,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "FlowSubsystem", meta = (DefaultToSelf = "Owner"))
 	virtual void StartRootFlow(UObject* Owner, UFlowAsset* FlowAsset, const bool bAllowMultipleInstances = true);
 
+	/** Starts a root Flow with a given set of initial parameters. */
+	virtual UFlowAsset* StartRootFlowWithParameters(UObject* Owner, UFlowAsset* FlowAsset, const FInstancedPropertyBag& Parameters, const bool bAllowMultipleInstances = true);
+	
 	virtual UFlowAsset* CreateRootFlow(UObject* Owner, UFlowAsset* FlowAsset, const bool bAllowMultipleInstances = true, const FString& NewInstanceName = FString());
 
 	/* Finish Policy value is read by Flow Node
@@ -89,9 +93,29 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "FlowSubsystem", meta = (DefaultToSelf = "Owner"))
 	virtual void FinishAllRootFlows(UObject* Owner, const EFlowFinishPolicy FinishPolicy);
 
+	/**
+	 * Gets an existing Flow Asset instance for a SubGraph node or creates a new one.
+	 * Handles loading from SaveGame if SavedInstanceName is provided.
+	 * @note DOES NOT automatically start the flow. Call StartSubFlowInstance or TriggerSubFlowCustomInput explicitly after setup.
+	 */
+	UFlowAsset* GetOrCreateSubFlowInstance(UFlowNode_SubGraph* SubGraphNode, const FString& SavedInstanceName, bool& bNeedsLoadingOutput);
+
+	/**
+	 * Triggers a specific Custom Input event on a previously obtained SubFlow instance.
+	 * Does nothing if the instance is null.
+	 */
+	static void TriggerSubFlowCustomInput(UFlowAsset* SubGraphInstance, FName EventName);
+
+	/**
+	 * Starts the execution of a previously obtained SubFlow instance from its default 'Start' node.
+	 * Does nothing if the instance is null or already started.
+	 */
+	static void StartSubFlowInstance(UFlowAsset* SubGraphInstance);
+
 protected:
 	UFlowAsset* CreateSubFlow(UFlowNode_SubGraph* SubGraphNode, const FString& SavedInstanceName = FString(), const bool bPreloading = false);
 	void RemoveSubFlow(UFlowNode_SubGraph* SubGraphNode, const EFlowFinishPolicy FinishPolicy);
+	void LoadFlowInstanceFromSaveData(UFlowAsset* InstanceToLoad, const FString& InstanceName) const;
 
 public:
 	UFlowAsset* CreateFlowInstance(const TWeakObjectPtr<UObject> Owner, UFlowAsset* LoadedFlowAsset, FString NewInstanceName = FString());

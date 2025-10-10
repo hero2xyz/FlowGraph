@@ -26,8 +26,8 @@
 		},
 		{
 			"Name" : "FlowEditor",
-			"Type" : "Editor",
-			"LoadingPhase" : "PreDefault"
+            "Type": "UncookedOnly",
+			"LoadingPhase" : "Default"
 		}
 	],
 	"Plugins": [

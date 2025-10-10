@@ -184,3 +184,21 @@ enum class EFlowForEachAddOnChildRule : int8
 	Min = 0 UMETA(Hidden),
 };
 FLOW_ENUM_RANGE_VALUES(EFlowForEachAddOnChildRule);
+
+/** Configuration for Blueprint variable Flow properties.*/
+USTRUCT()
+struct FLOW_API FFlowVarConfig
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	bool bIsDataPin = false;
+
+	UPROPERTY()
+	bool bIsInput = false;
+
+	FFlowVarConfig() {}
+
+	bool IsInputPin() const { return bIsDataPin && bIsInput; }
+	bool IsOutputPin() const { return bIsDataPin && !bIsInput; }
+};

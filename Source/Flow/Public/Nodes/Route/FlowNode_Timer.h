@@ -16,7 +16,7 @@ class FLOW_API UFlowNode_Timer : public UFlowNode
 
 protected:
 	// If the value is closer to 0, Timer will complete in next tick
-	UPROPERTY(EditAnywhere, Category = "Timer", meta = (ClampMin = 0.0f, DefaultForInputFlowPin, FlowPinType = Float))
+	UPROPERTY(EditAnywhere, Category = "Timer", meta = (ClampMin = 0.0f, FlowDataPin = "Input"))
 	float CompletionTime;
 
 	// this allows to trigger other nodes multiple times before completing the Timer
@@ -44,6 +44,7 @@ private:
 protected:
 	virtual void InitializeInstance() override;
 	virtual void ExecuteInput(const FName& PinName) override;
+	virtual void CachePinProperties() override;
 
 	virtual void SetTimer();
 	virtual void Restart();

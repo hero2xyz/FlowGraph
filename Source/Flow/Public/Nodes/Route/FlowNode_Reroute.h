@@ -15,4 +15,6 @@ class FLOW_API UFlowNode_Reroute final : public UFlowNode
 	
 protected:
 	virtual void ExecuteInput(const FName& PinName) override;
+	virtual bool EvaluateAndGetOutputValue(const FName OutputPinName, FProperty*& OutProperty, const void*& OutDataPtr) override;
+	virtual void CachePinProperties() override;
 };

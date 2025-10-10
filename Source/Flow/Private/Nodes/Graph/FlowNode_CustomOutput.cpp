@@ -3,6 +3,7 @@
 #include "Nodes/Graph/FlowNode_CustomOutput.h"
 #include "FlowAsset.h"
 #include "FlowSettings.h"
+#include "Nodes/Graph/FlowNode_SubGraph.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FlowNode_CustomOutput)
 
@@ -12,43 +13,30 @@ UFlowNode_CustomOutput::UFlowNode_CustomOutput(const FObjectInitializer& ObjectI
 	: Super(ObjectInitializer)
 {
 	OutputPins.Empty();
+	AllowedDirection = Input;
 }
 
 void UFlowNode_CustomOutput::ExecuteInput(const FName& PinName)
 {
-	UFlowAsset* FlowAsset = GetFlowAsset();
-	check(IsValid(FlowAsset));
-
-	if (EventName.IsNone())
+	if (!PrepareInputs())
 	{
-		LogWarning(FString::Printf(TEXT("Attempted to trigger a CustomOutput (Node %s, Asset %s), with no EventName"),
-		                           *GetName(),
-		                           *FlowAsset->GetPathName()));
+		LogError(FString::Printf(TEXT("FlowNode_CustomOutput %s failed to prepare its inputs for event %s. Output data might be incorrect."), *GetNameSafe(this), *GetEventName().ToString()));
 	}
-	else if (!FlowAsset->TryFindCustomOutputNodeByEventName(EventName))
+
+	UFlowAsset* OwningAssetInstance = GetFlowAsset();
+	if (!OwningAssetInstance)
 	{
-		const TArray<FName> OutputNames = FlowAsset->GatherCustomOutputNodeEventNames();
-		FString CustomOutputsString;
+		LogError(TEXT("FlowNode_CustomOutput executed without a valid Owning Flow Asset Instance."), EFlowOnScreenMessageType::Permanent);
+		return;
+	}
 
-		for (const FName& OutputName : OutputNames)
-		{
-			if (!CustomOutputsString.IsEmpty())
-			{
-				CustomOutputsString += TEXT(", ");
-			}
-
-			CustomOutputsString += OutputName.ToString();
-		}
-
-		LogWarning(FString::Printf(TEXT("Attempted to trigger a CustomOutput (Node %s, Asset %s), with EventName %s, which is not a listed CustomOutput { %s }"),
-		                           *GetName(),
-		                           *FlowAsset->GetPathName(),
-		                           *EventName.ToString(),
-		                           *CustomOutputsString));
+	if (UFlowNode_SubGraph* ParentSubGraphNode = OwningAssetInstance->GetNodeOwningThisAssetInstance())
+	{
+		ParentSubGraphNode->NotifySubGraphOutput(this, GetEventName());
 	}
 	else
 	{
-		FlowAsset->TriggerCustomOutput(EventName);
+		OwningAssetInstance->TriggerCustomOutput(GetEventName());
 	}
 }
 

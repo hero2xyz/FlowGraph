@@ -23,6 +23,61 @@
 
 FString UFlowAsset::ValidationError_NodeClassNotAllowed = TEXT("Node class {0} is not allowed in this asset.");
 FString UFlowAsset::ValidationError_NullNodeInstance = TEXT("Node with GUID {0} is NULL");
+
+namespace FlowHarvestHelpers
+{
+	bool AreConnectedPinMapsEqual(const TMap<FName, FConnectedPin>& MapA, const TMap<FName, FConnectedPin>& MapB)
+	{
+		if (MapA.Num() != MapB.Num())
+		{
+			return false;
+		}
+		for (const auto& PairA : MapA)
+		{
+			const FConnectedPin* ValueB = MapB.Find(PairA.Key);
+			if (!ValueB || PairA.Value != *ValueB)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	// Helper to compare FPinConnectionList (ignoring order in the array)
+	bool ArePinConnectionListsEqual(const FPinConnectionList* ListA, const FPinConnectionList* ListB)
+	{
+		if (!ListA && !ListB)
+		{
+			return true;
+		}
+		if (!ListA || !ListB)
+		{
+			return false;
+		}
+		if (ListA->Connections.Num() != ListB->Connections.Num())
+		{
+			return false;
+		}
+
+		for (const FConnectedPin& ConnA : ListA->Connections)
+		{
+			bool bFoundMatch = false;
+			for (const FConnectedPin& ConnB : ListB->Connections)
+			{
+				if (ConnA == ConnB)
+				{
+					bFoundMatch = true;
+					break;
+				}
+			}
+			if (!bFoundMatch)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+} // namespace FlowHarvestHelpers
 #endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FlowAsset)
@@ -59,7 +114,7 @@ void UFlowAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 
 	if (PropertyChangedEvent.Property && (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UFlowAsset, CustomInputs) || PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UFlowAsset, CustomOutputs)))
 	{
-		OnSubGraphReconstructionRequested.ExecuteIfBound();
+		OnSubGraphReconstructionRequested.Broadcast();
 	}
 }
 
@@ -310,9 +365,146 @@ void UFlowAsset::UnregisterNode(const FGuid& NodeGuid)
 	MarkPackageDirty();
 }
 
+void UFlowAsset::GatherNodeConnections(UEdGraphNode* GraphNode, const UFlowAsset* OwningAsset, TMap<FName, FConnectedPin>& OutInputs, TMap<FName, FPinConnectionList>& OutOutputs)
+{
+	OutInputs.Empty();
+	OutOutputs.Empty();
+
+	for (const UEdGraphPin* Pin : GraphNode->Pins)
+	{
+		// Process output pins (connections FROM this node)
+		if (Pin->Direction == EGPD_Output && Pin->LinkedTo.Num() > 0)
+		{
+			FName OutputPinName = Pin->PinName;
+			auto& [Connections] = OutOutputs.FindOrAdd(OutputPinName);
+			for (const UEdGraphPin* LinkedPin : Pin->LinkedTo)
+			{
+				if (LinkedPin && LinkedPin->GetOwningNode())
+				{
+					const FGuid TargetNodeGuid = LinkedPin->GetOwningNode()->NodeGuid;
+					const FName TargetPinName = LinkedPin->PinName;
+
+					// Ensure the target node exists in the asset
+					if (OwningAsset->GetNode(TargetNodeGuid))
+					{
+						Connections.AddUnique(FConnectedPin(TargetNodeGuid, TargetPinName));
+					}
+					else
+					{
+						UE_LOG(LogFlow, Warning, TEXT("Invalid target node '%s' for connection from '%s'"),
+						    *TargetNodeGuid.ToString(), *GraphNode->GetNodeTitle(ENodeTitleType::ListView).ToString());
+					}
+				}
+			}
+		}
+		// Process input pins (connections TO this node)
+		else if (Pin->Direction == EGPD_Input && Pin->LinkedTo.Num() > 0)
+		{
+			const UEdGraphPin* SourcePin = Pin->LinkedTo[0];
+			if (SourcePin && SourcePin->GetOwningNode())
+			{
+				const FGuid SourceNodeGuid = SourcePin->GetOwningNode()->NodeGuid;
+				const FName SourcePinName = SourcePin->PinName;
+
+				if (OwningAsset->GetNode(SourceNodeGuid))
+				{
+					OutInputs.Emplace(Pin->PinName, FConnectedPin(SourceNodeGuid, SourcePinName));
+				}
+				else
+				{
+					UE_LOG(LogFlow, Warning, TEXT("Invalid source node '%s' for connection to '%s'"),
+					    *SourceNodeGuid.ToString(), *GraphNode->GetNodeTitle(ENodeTitleType::ListView).ToString());
+				}
+			}
+		}
+	}
+}
+
+bool UFlowAsset::ApplyConnectionChanges(UFlowNode* RuntimeNode, const TMap<FName, FConnectedPin>& NewInputs, const TMap<FName, FPinConnectionList>& NewOutputs)
+{
+	bool bModified = false;
+	bool bOutputsDiffer = false;
+	if (RuntimeNode->OutputConnections.Num() != NewOutputs.Num())
+	{
+		bOutputsDiffer = true;
+	}
+	else
+	{
+		for (const auto& Pair : NewOutputs)
+		{
+			const FPinConnectionList* ExistingList = RuntimeNode->OutputConnections.Find(Pair.Key);
+			if (!FlowHarvestHelpers::ArePinConnectionListsEqual(ExistingList, &Pair.Value))
+			{
+				bOutputsDiffer = true;
+				break;
+			}
+		}
+		if (!bOutputsDiffer)
+		{
+			for (const auto& Pair : RuntimeNode->OutputConnections)
+			{
+				if (!NewOutputs.Contains(Pair.Key))
+				{
+					bOutputsDiffer = true;
+					break;
+				}
+			}
+		}
+	}
+
+	if (bOutputsDiffer)
+	{
+		RuntimeNode->OutputConnections = NewOutputs;
+		bModified = true;
+	}
+
+	if (!FlowHarvestHelpers::AreConnectedPinMapsEqual(RuntimeNode->InputConnections, NewInputs))
+	{
+		RuntimeNode->InputConnections = NewInputs;
+		bModified = true;
+	}
+	
+	if (bModified)
+	{
+		RuntimeNode->SetFlags(RF_Transactional);
+		RuntimeNode->Modify();
+	}
+
+	return bModified;
+}
+
+void UFlowAsset::UpdateTargetNodesInputs(const UFlowAsset* OwningAsset, const FGuid& SourceNodeGuid, const TMap<FName, FPinConnectionList>& Outputs, TSet<UFlowNode*>& OutModifiedNodes)
+{
+	for (const auto& Pair : Outputs)
+	{
+		const FName SourcePinName = Pair.Key;
+		for (const FConnectedPin& Target : Pair.Value.Connections)
+		{
+			UFlowNode* TargetNode = OwningAsset->GetNode(Target.NodeGuid);
+			if (!TargetNode)
+			{
+				continue;
+			}
+
+			const FName TargetPinName = Target.PinName;
+			FConnectedPin SourceInfo(SourceNodeGuid, SourcePinName);
+			
+			const FConnectedPin* ExistingInput = TargetNode->InputConnections.Find(TargetPinName);
+			if (!ExistingInput || *ExistingInput != SourceInfo) // Needs update?
+			{
+				TargetNode->InputConnections.Emplace(TargetPinName, SourceInfo);
+				TargetNode->SetFlags(RF_Transactional);
+				TargetNode->Modify();
+				OutModifiedNodes.Add(TargetNode);
+			}
+		}
+	}
+}
+
 void UFlowAsset::HarvestNodeConnections(UFlowNode* TargetNode)
 {
 	TArray<UFlowNode*> TargetNodes;
+	TSet<UFlowNode*> ModifiedNodes;
 
 	if (IsValid(TargetNode))
 	{
@@ -340,64 +532,23 @@ void UFlowAsset::HarvestNodeConnections(UFlowNode* TargetNode)
 
 	for (UFlowNode* FlowNode : TargetNodes)
 	{
-		bool bNodeDirty = false;
-
-		TMap<FName, FConnectedPin> FoundConnections;
-		const TArray<UEdGraphPin*>& GraphNodePins = FlowNode->GetGraphNode()->Pins;
-
-		for (const UEdGraphPin* ThisPin : GraphNodePins)
+		TMap<FName, FConnectedPin> NewInputs;
+		TMap<FName, FPinConnectionList> NewOutputs;
+		GatherNodeConnections(FlowNode->GetGraphNode(), this, NewInputs, NewOutputs);
+		
+		if (ApplyConnectionChanges(FlowNode, NewInputs, NewOutputs))
 		{
-			const bool bIsOutputPin = (ThisPin->Direction == EGPD_Output);
-			const bool bIsInputPin = (ThisPin->Direction == EGPD_Input);
-			const bool bHasAtLeastOneConnection = ThisPin->LinkedTo.Num() > 0;
-
-			if (bIsOutputPin && bHasAtLeastOneConnection)
-			{
-				// For Exec Pins, harvest the 0th connection (we should have only 1 connection, because of schema rules)
-				if (const UEdGraphPin* LinkedPin = ThisPin->LinkedTo[0])
-				{
-					const UEdGraphNode* LinkedNode = LinkedPin->GetOwningNode();
-					FoundConnections.Add(ThisPin->PinName, FConnectedPin(LinkedNode->NodeGuid, LinkedPin->PinName));
-				}
-			}
+			ModifiedNodes.Add(FlowNode);
+			UpdateTargetNodesInputs(this, FlowNode->GetGraphNode()->NodeGuid, NewOutputs, ModifiedNodes);
 		}
+	}
 
-		// This check exists to ensure that we don't mark graph dirty, if none of connections changed
-		{
-			const TMap<FName, FConnectedPin>& OldConnections = FlowNode->Connections;
-			if (FoundConnections.Num() != OldConnections.Num())
-			{
-				bNodeDirty = true;
-			}
-			else
-			{
-				for (const TPair<FName, FConnectedPin>& FoundConnection : FoundConnections)
-				{
-					if (const FConnectedPin* OldConnection = OldConnections.Find(FoundConnection.Key))
-					{
-						if (FoundConnection.Value != *OldConnection)
-						{
-							bNodeDirty = true;
-							break;
-						}
-					}
-					else
-					{
-						bNodeDirty = true;
-						break;
-					}
-				}
-			}
-		}
-
-		if (bNodeDirty)
-		{
-			FlowNode->SetFlags(RF_Transactional);
-			FlowNode->Modify();
-
-			FlowNode->SetConnections(FoundConnections);
-			FlowNode->PostEditChange();
-		}
+	if (ModifiedNodes.Num() > 0)
+	{
+		SetFlags(RF_Transactional);
+		Modify();
+		this->Modify();
+		this->MarkPackageDirty();
 	}
 }
 

@@ -20,6 +20,25 @@ public:
 	void Construct(const FArguments& InArgs, UEdGraphPin* InPin);
 };
 
+/**
+ * This class overrides the default SGraphPin construction behavior to ensure
+ * that visual properties, particularly pin colors (primary and secondary),
+ * are determined by querying our GraphSchema, rather than relying on the base SGraphPin's
+ * internal logic, which assumes a UEdGraphSchema_K2.
+ */
+class FLOWEDITOR_API SFlowGraphPinData : public SGraphPin
+{
+public:
+	SLATE_BEGIN_ARGS(SFlowGraphPinData) {}
+	SLATE_END_ARGS()
+
+	SFlowGraphPinData();
+	void Construct(const FArguments& InArgs, UEdGraphPin* InPin);
+
+private:
+	static TSharedRef<SWidget> CreatePinTypeWidget(const UEdGraphPin* Pin);
+};
+
 class FLOWEDITOR_API SFlowGraphNode : public SGraphNode
 {
 public:

@@ -144,3 +144,33 @@ struct FLOWEDITOR_API FFlowGraphSchemaAction_NewComment : public FEdGraphSchemaA
 	virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
 	// --
 };
+
+/** Action to add a 'Get Variable' node to the graph */
+USTRUCT()
+struct FLOWEDITOR_API FFlowGraphSchemaAction_NewGetVariableNode : public FEdGraphSchemaAction
+{
+	GENERATED_USTRUCT_BODY()
+	
+	FName VariableName;
+
+	FFlowGraphSchemaAction_NewGetVariableNode() = default;
+	FFlowGraphSchemaAction_NewGetVariableNode(FText InNodeCategory, FText InMenuDesc, FText InToolTip, int32 InGrouping, FName InVariableName);
+
+	// FEdGraphSchemaAction
+	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+};
+
+/** Action to add a 'Set Variable' node to the graph */
+USTRUCT()
+struct FLOWEDITOR_API FFlowGraphSchemaAction_NewSetVariableNode : public FEdGraphSchemaAction
+{
+	GENERATED_USTRUCT_BODY()
+
+	FName VariableName;
+
+	FFlowGraphSchemaAction_NewSetVariableNode() = default;
+	FFlowGraphSchemaAction_NewSetVariableNode(FText InNodeCategory, FText InMenuDesc, FText InToolTip, int32 InGrouping, FName InVariableName);
+
+	// FEdGraphSchemaAction
+	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+};

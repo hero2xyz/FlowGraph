@@ -17,6 +17,8 @@
 #include "EdGraphNode_Comment.h"
 #include "Editor.h"
 #include "ScopedTransaction.h"
+#include "Nodes/Graph/FlowNode_GetVariable.h"
+#include "Nodes/Graph/FlowNode_SetVariable.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FlowGraphSchema_Actions)
 
@@ -313,6 +315,44 @@ UEdGraphNode* FFlowGraphSchemaAction_NewComment::PerformAction(class UEdGraph* P
 	}
 
 	return FEdGraphSchemaAction_NewNode::SpawnNodeFromTemplate<UEdGraphNode_Comment>(ParentGraph, CommentTemplate, SpawnLocation);
+}
+
+FFlowGraphSchemaAction_NewGetVariableNode::FFlowGraphSchemaAction_NewGetVariableNode(FText InNodeCategory, FText InMenuDesc, FText InToolTip, int32 InGrouping, FName InVariableName)
+	: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping)
+	, VariableName(InVariableName)
+{}
+
+UEdGraphNode* FFlowGraphSchemaAction_NewGetVariableNode::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode)
+{
+	UFlowGraphNode* NewNode = FFlowGraphSchemaAction_NewNode::CreateNode(ParentGraph, FromPin, UFlowNode_GetVariable::StaticClass(), Location, bSelectNewNode);
+	if (NewNode)
+	{
+		if (UFlowNode_GetVariable* GetVarNode = Cast<UFlowNode_GetVariable>(NewNode->GetFlowNodeBase()))
+		{
+			GetVarNode->VariableName = VariableName;
+			NewNode->ReconstructNode();
+		}
+	}
+	return NewNode;
+}
+
+FFlowGraphSchemaAction_NewSetVariableNode::FFlowGraphSchemaAction_NewSetVariableNode(FText InNodeCategory, FText InMenuDesc, FText InToolTip, int32 InGrouping, FName InVariableName)
+	: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping)
+	, VariableName(InVariableName)
+{}
+
+UEdGraphNode* FFlowGraphSchemaAction_NewSetVariableNode::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode)
+{
+	UFlowGraphNode* NewNode = FFlowGraphSchemaAction_NewNode::CreateNode(ParentGraph, FromPin, UFlowNode_SetVariable::StaticClass(), Location, bSelectNewNode);
+	if (NewNode)
+	{
+		if (UFlowNode_SetVariable* SetVarNode = Cast<UFlowNode_SetVariable>(NewNode->GetFlowNodeBase()))
+		{
+			SetVarNode->VariableName = VariableName;
+			NewNode->ReconstructNode();
+		}
+	}
+	return NewNode;
 }
 
 #undef LOCTEXT_NAMESPACE

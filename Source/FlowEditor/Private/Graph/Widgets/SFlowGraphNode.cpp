@@ -29,12 +29,15 @@
 #include "SNodePanel.h"
 #include "Styling/SlateColor.h"
 #include "TutorialMetaData.h"
+#include "Graph/FlowGraphSchema.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/SToolTip.h"
+#include "Widgets/Images/SLayeredImage.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 
 #define LOCTEXT_NAMESPACE "SFlowGraphNode"
@@ -48,6 +51,116 @@ void SFlowGraphPinExec::Construct(const FArguments& InArgs, UEdGraphPin* InPin)
 {
 	SGraphPinExec::Construct(SGraphPinExec::FArguments(), InPin);
 	bUsePinColorForText = true;
+}
+
+SFlowGraphPinData::SFlowGraphPinData()
+{
+}
+
+TSharedRef<SWidget> SFlowGraphPinData::CreatePinTypeWidget(const UEdGraphPin* Pin)
+{
+	if (!Pin)
+	{
+		return SNullWidget::NullWidget;
+	}
+
+	// Primary Icon Delegate
+	const TAttribute<const FSlateBrush*> PrimaryIconDelegate = TAttribute<const FSlateBrush*>::CreateLambda(
+		[Pin]() -> const FSlateBrush*
+		{
+			if (!Pin->IsPendingKill())
+			{
+				return FBlueprintEditorUtils::GetIconFromPin(Pin->PinType, /* bIsLarge = */ true);
+			}
+			return FAppStyle::GetNoBrush();
+		});
+
+	// Primary Color Delegate
+	const TAttribute<FSlateColor> PrimaryColorDelegate = TAttribute<FSlateColor>::CreateLambda(
+		[Pin]() -> FSlateColor
+		{
+			if (!Pin->IsPendingKill())
+			{
+				if (const UFlowGraphSchema* FlowSchema = Cast<UFlowGraphSchema>(Pin->GetSchema()))
+				{
+					return FlowSchema->GetPinTypeColor(Pin->PinType);
+				}
+			}
+			return GetDefault<UGraphEditorSettings>()->DefaultPinTypeColor;
+		});
+
+	// Secondary Icon Delegate
+	TAttribute<const FSlateBrush*> SecondaryIconDelegate = TAttribute<const FSlateBrush*>::CreateLambda(
+		[Pin]() -> const FSlateBrush*
+		{
+			if (!Pin->IsPendingKill())
+			{
+				if (Pin->PinType.IsMap() || Pin->PinType.IsSet() || Pin->PinType.IsArray())
+				{
+					return FBlueprintEditorUtils::GetSecondaryIconFromPin(Pin->PinType);
+				}
+			}
+			return FAppStyle::GetNoBrush();
+		});
+
+	// Secondary Color Delegate
+	TAttribute<FSlateColor> SecondaryColorDelegate = TAttribute<FSlateColor>::CreateLambda(
+		[Pin]() -> FSlateColor
+		{
+			if (!Pin->IsPendingKill())
+			{
+				if (Pin->PinType.IsMap() || Pin->PinType.IsSet() || Pin->PinType.IsArray())
+				{
+					if (const UFlowGraphSchema* FlowSchema = Cast<UFlowGraphSchema>(Pin->GetSchema()))
+					{
+						return FlowSchema->GetSecondaryPinTypeColor(Pin->PinType);
+					}
+				}
+			}
+			return FLinearColor::White;
+		});
+
+	return SNew(SLayeredImage, SecondaryIconDelegate, SecondaryColorDelegate)
+		.Image(PrimaryIconDelegate)
+		.ColorAndOpacity(PrimaryColorDelegate);
+}
+
+void SFlowGraphPinData::Construct(const FArguments& InArgs, UEdGraphPin* InPin)
+{
+	SGraphPin::Construct(SGraphPin::FArguments(), InPin);
+	const TSharedRef<SWidget> FlowPinImageWidget = CreatePinTypeWidget(InPin);
+	SetPinImageWidget(FlowPinImageWidget);
+	const TSharedPtr<SHorizontalBox> PinContentBox = StaticCastSharedPtr<SHorizontalBox>(FullPinHorizontalRowWidget.Pin());
+	if (PinContentBox.IsValid())
+	{
+		int32 TargetSlotIndex = -1;
+		const int32 NumSlots = PinContentBox->NumSlots();
+		if (GetDirection() == EGPD_Input)
+		{
+			if (NumSlots > 0)
+			{
+				TargetSlotIndex = 0;
+			}
+		}
+		else // EGPD_Output
+		{
+			if (NumSlots > 0)
+			{
+				TargetSlotIndex = NumSlots - 1;
+			}
+		}
+
+		// If we found a valid index, replace the content of that slot
+		if (TargetSlotIndex != -1)
+		{
+			SHorizontalBox::FSlot& TargetSlot = PinContentBox->GetSlot(TargetSlotIndex);
+			TargetSlot
+			[
+				FlowPinImageWidget
+			];
+		}
+	}
+	FlowPinImageWidget->SetCursor(TAttribute<TOptional<EMouseCursor::Type>>::CreateSP(this, &SFlowGraphPinData::GetPinCursor));
 }
 
 const FLinearColor SFlowGraphNode::UnselectedNodeTint = FLinearColor(1.0f, 1.0f, 1.0f, 0.5f);

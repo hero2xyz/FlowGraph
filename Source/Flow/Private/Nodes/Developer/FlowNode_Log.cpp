@@ -2,6 +2,7 @@
 
 #include "Nodes/Developer/FlowNode_Log.h"
 #include "FlowLogChannels.h"
+#include "FlowNodeMacros.h"
 
 #include "Engine/Engine.h"
 
@@ -57,6 +58,12 @@ void UFlowNode_Log::ExecuteInput(const FName& PinName)
 	}
 
 	TriggerFirstOutput(true);
+}
+
+void UFlowNode_Log::CachePinProperties()
+{
+	Super::CachePinProperties();
+	DECLARE_INPUT_PIN(Message);
 }
 
 #if WITH_EDITOR

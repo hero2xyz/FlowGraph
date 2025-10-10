@@ -25,7 +25,7 @@ TSharedPtr<SGraphPin> FFlowGraphPinFactory::CreatePin(UEdGraphPin* InPin) const
 	const UFlowGraphNode* FlowGraphNode = Cast<UFlowGraphNode>(InPin->GetOwningNode());
 
 	// Create the widget for a Flow 'Exec'-style pin
-	if (FlowGraphNode)
+	if (FlowGraphNode && InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec)
 	{
 		const TSharedPtr<SGraphPin> NewPinWidget = SNew(SFlowGraphPinExec, InPin);
 
@@ -52,6 +52,17 @@ TSharedPtr<SGraphPin> FFlowGraphPinFactory::CreatePin(UEdGraphPin* InPin) const
 		}
 
 		return NewPinWidget;
+	}
+
+	if (InPin->PinType.ContainerType == EPinContainerType::Map)
+	{
+		return SNew(SFlowGraphPinData, InPin);
+	}
+
+	TSharedPtr<SGraphPin> K2PinWidget = FNodeFactory::CreateK2PinWidget(InPin);
+	if (K2PinWidget.IsValid())
+	{
+		return K2PinWidget;
 	}
 
 	return nullptr;

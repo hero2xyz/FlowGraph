@@ -49,7 +49,7 @@ public:
 	void ValidateAsset(FFlowMessageLog& MessageLog);
 
 	// UObject
-	virtual void Serialize(FArchive& Ar) override;
+	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 	// --
 	
 public:
@@ -70,7 +70,7 @@ protected:
 	static void UpdateFlowGraphNodeErrorMessage(UFlowGraphNode& Node);
 	static FString GetDeprecationMessage(const UClass* Class);
 
-public:	
+public:
 	virtual void OnSubNodeDropped();
 	virtual void OnNodesPasted(const FString& ImportStr) {}
 
